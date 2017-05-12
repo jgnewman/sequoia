@@ -3,6 +3,7 @@
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
+exports.deleteData = exports.postData = exports.patchData = exports.getData = exports.dataRequest = exports.getConstantName = exports.createConstant = exports.constants = exports.render = exports.component = exports.reduce = exports.uuid = exports.queriable = undefined;
 
 var _reactPathway = require('react-pathway');
 
@@ -102,3 +103,13 @@ Object.defineProperty(exports, 'deleteData', {
     return _data.deleteData;
   }
 });
+
+var _queriable = require('./queriable');
+
+var _queriable2 = _interopRequireDefault(_queriable);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.queriable = _queriable2.default; /*
+                                          * Export all publicly available functionality.
+                                          */

@@ -16,7 +16,9 @@ In it's simplest form, a Sequoia app looks like this:
 import { component, render } from 'sequoia';
 
 const App = component(() => {
-  return () => <div>Hello, world!</div>
+  return () => (
+    <div>Hello, world!</div>
+  )
 })
 
 render(<App />, { target: '#app' })
@@ -34,11 +36,15 @@ In order to illustrate the power of component-based architecture, let's add 1 mo
 import { component, render } from 'sequoia';
 
 const TextBlock = component(() => {
-  return props => <div className="text-block">{props.text}</div>
+  return props => (
+    <div className="text-block">{props.text}</div>
+  )
 })
 
 const App = component(() => {
-  return () => <TextBlock text="Hello, world!" />
+  return () => (
+    <TextBlock text="Hello, world!" />
+  )
 })
 
 render(<App />, { target: '#app' })
@@ -59,7 +65,9 @@ const TextBlock = component(({ ensure }) => {
     text: ensure.string.isRequired
   })
 
-  return props => <div className="text-block">{props.text}</div>
+  return props => (
+    <div className="text-block">{props.text}</div>
+  )
 })
 ```
 

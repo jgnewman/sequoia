@@ -43,7 +43,7 @@ gulp.task('serve', ['build', 'serve:build-client-app'], () => {
 });
 
 
-gulp.task('test', () => {
+gulp.task('test', ['build'], () => {
   return gulp.src(['./test/**/*.js'], { read: false })
              .pipe(mocha({
                reporter: 'spec',
