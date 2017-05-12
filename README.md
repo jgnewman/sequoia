@@ -2,6 +2,8 @@
 
 **SEQUOIA IS CURRENTLY AN ALPHA TECHNOLOGY, STILL IN ACTIVE DEVELOPMENT. USE AT YOUR OWN RISK.**
 
+[![Build Status](https://travis-ci.org/jgnewman/sequoia.svg?branch=master)](https://travis-ci.org/jgnewman/sequoia)
+
 Sequoia is a full-featured JavaScript application framework. It's powered by React and common React-based tools but you can quickly learn Sequoia without having ever touched React in your life. By the same token, it's similar enough to standard React techniques that, if you are already familiar with React best practices, migrating to a Sequoia mindset can be done extremely quickly.
 
 ## How It Works
