@@ -13,6 +13,27 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 var secretKey = Symbol();
 
 /**
+ * Determines whether an item is a match for a collection
+ * of query options.
+ *
+ * @param  {Object}  item     The item in question.
+ * @param  {Object}  options  The query options.
+ * @param  {Array}   keys     A pre-collect list of options keys.
+ *
+ * @return {Boolean} Whether or not the item matches.
+ */
+function isMatch(item, options, keys) {
+  var itemMatches = true;
+  keys.some(function (key) {
+    if (item[key] !== options[key]) {
+      itemMatches = false;
+      return true;
+    }
+  });
+  return itemMatches;
+}
+
+/**
  * Loop over an array of objects and return the first one
  * that matches the options.
  *
@@ -28,14 +49,7 @@ function findMatchFor() {
   var match = { item: undefined, index: -1 };
   var keys = Object.keys(options);
   inArray.some(function (item, index) {
-    var itemMatches = true;
-    keys.some(function (key) {
-      if (item[key] !== options[key]) {
-        itemMatches = false;
-        return true;
-      }
-    });
-    if (itemMatches) {
+    if (isMatch(item, options, keys)) {
       match = { item: item, index: index };
       return true;
     }
@@ -113,14 +127,33 @@ var Queriable = function () {
     value: function getAllWhere(options) {
       var keys = Object.keys(options);
       return this.get().filter(function (item) {
-        var match = true;
-        keys.some(function (key) {
-          if (item[key] !== options[key]) {
-            match = false;
-            return true;
-          }
-        });
-        return match;
+        return isMatch(item, options, keys);
+      });
+    }
+
+    /**
+     * Updates matches in an array of objects.
+     * NOTE: Returns a NEW array.
+     *
+     * @param  {Object} options  Properties to match on each object.
+     * @param  {Object} updates  The updates to make to matching objects.
+     *
+     * @return {Array} Contains all the objects; contains the updates.
+     */
+
+  }, {
+    key: "updateWhere",
+    value: function updateWhere(options, updates) {
+      var optionKeys = Object.keys(options);
+      var updateKeys = Object.keys(updates);
+
+      return this.get().map(function (item) {
+        if (isMatch(item, options, optionKeys)) {
+          updateKeys.forEach(function (key) {
+            item[key] = updates[key];
+          });
+        }
+        return item;
       });
     }
 
@@ -142,6 +175,27 @@ var Queriable = function () {
     }
 
     /**
+     * Remove all items from the array that match the query and
+     * return a new array.
+     *
+     * @param  {Object} options Properties to match on each object.
+     *
+     * @return {Array} A new array where an item has been removed.
+     */
+
+  }, {
+    key: "subtractWhere",
+    value: function subtractWhere(options) {
+      var keys = Object.keys(options);
+      return this.get().filter(function (item) {
+        if (isMatch(item, options, keys)) {
+          return false;
+        }
+        return true;
+      });
+    }
+
+    /**
      * Count the amount of items in the array.
      *
      * @return {Number} The number of items in the array.
@@ -151,6 +205,18 @@ var Queriable = function () {
     key: "count",
     value: function count() {
       return this.get().length;
+    }
+
+    /**
+     * Count the amount of items that match the provided options.
+     *
+     * @return {Number} The number of matches.
+     */
+
+  }, {
+    key: "countWhere",
+    value: function countWhere(options) {
+      return this.getAllWhere(options).length;
     }
 
     /**

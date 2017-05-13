@@ -32,3 +32,6 @@
 - [x] allow multiple apps on one page
 - [ ] Why is react-pathway calling render on its child twice??
 - [ ] update live reloader with something that works with node 7
+- [x] queriable.countWhere
+- [x] queriable.updateWhere
+- [x] queriable.subtractWhere
