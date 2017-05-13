@@ -965,6 +965,27 @@ function _classCallCheck(instance, Constructor) {
 var secretKey = Symbol();
 
 /**
+ * Determines whether an item is a match for a collection
+ * of query options.
+ *
+ * @param  {Object}  item     The item in question.
+ * @param  {Object}  options  The query options.
+ * @param  {Array}   keys     A pre-collect list of options keys.
+ *
+ * @return {Boolean} Whether or not the item matches.
+ */
+function isMatch(item, options, keys) {
+  var itemMatches = true;
+  keys.some(function (key) {
+    if (item[key] !== options[key]) {
+      itemMatches = false;
+      return true;
+    }
+  });
+  return itemMatches;
+}
+
+/**
  * Loop over an array of objects and return the first one
  * that matches the options.
  *
@@ -980,18 +1001,12 @@ function findMatchFor() {
   var match = { item: undefined, index: -1 };
   var keys = Object.keys(options);
   inArray.some(function (item, index) {
-    var itemMatches = true;
-    keys.some(function (key) {
-      if (item[key] !== options[key]) {
-        itemMatches = false;
-        return true;
-      }
-    });
-    if (itemMatches) {
+    if (isMatch(item, options, keys)) {
       match = { item: item, index: index };
       return true;
     }
   });
+  return match;
 }
 
 /*
@@ -1003,7 +1018,7 @@ var Queriable = function () {
     _classCallCheck(this, Queriable);
 
     this.__getArray = function (key) {
-      return key === sercretKey ? array || [] : null;
+      return key === secretKey ? array || [] : null;
     };
   }
 
@@ -1033,7 +1048,7 @@ var Queriable = function () {
   }, {
     key: "getIndexWhere",
     value: function getIndexWhere(options) {
-      return findMatchFor(options, this.__getArray(secretKey)).index;
+      return findMatchFor(options, this.get()).index;
     }
 
     /**
@@ -1047,7 +1062,7 @@ var Queriable = function () {
   }, {
     key: "getOneWhere",
     value: function getOneWhere(options) {
-      return findMatchFor(options, this.__getArray(secretKey)).item;
+      return findMatchFor(options, this.get()).item;
     }
 
     /**
@@ -1062,15 +1077,34 @@ var Queriable = function () {
     key: "getAllWhere",
     value: function getAllWhere(options) {
       var keys = Object.keys(options);
-      return this.__getArray(secretKey).filter(function (item) {
-        var match = true;
-        keys.some(function (key) {
-          if (item[key] !== options[key]) {
-            match = false;
-            return true;
-          }
-        });
-        return match;
+      return this.get().filter(function (item) {
+        return isMatch(item, options, keys);
+      });
+    }
+
+    /**
+     * Updates matches in an array of objects.
+     * NOTE: Returns a NEW array.
+     *
+     * @param  {Object} options  Properties to match on each object.
+     * @param  {Object} updates  The updates to make to matching objects.
+     *
+     * @return {Array} Contains all the objects; contains the updates.
+     */
+
+  }, {
+    key: "updateWhere",
+    value: function updateWhere(options, updates) {
+      var optionKeys = Object.keys(options);
+      var updateKeys = Object.keys(updates);
+
+      return this.get().map(function (item) {
+        if (isMatch(item, options, optionKeys)) {
+          updateKeys.forEach(function (key) {
+            item[key] = updates[key];
+          });
+        }
+        return item;
       });
     }
 
@@ -1086,9 +1120,30 @@ var Queriable = function () {
   }, {
     key: "subtract",
     value: function subtract(index) {
-      var arr = this.__getArray(secretKey).slice();
+      var arr = this.get().slice();
       arr.splice(index, 1);
       return arr;
+    }
+
+    /**
+     * Remove all items from the array that match the query and
+     * return a new array.
+     *
+     * @param  {Object} options Properties to match on each object.
+     *
+     * @return {Array} A new array where an item has been removed.
+     */
+
+  }, {
+    key: "subtractWhere",
+    value: function subtractWhere(options) {
+      var keys = Object.keys(options);
+      return this.get().filter(function (item) {
+        if (isMatch(item, options, keys)) {
+          return false;
+        }
+        return true;
+      });
     }
 
     /**
@@ -1100,7 +1155,19 @@ var Queriable = function () {
   }, {
     key: "count",
     value: function count() {
-      return this.__getArray(secretKey).length;
+      return this.get().length;
+    }
+
+    /**
+     * Count the amount of items that match the provided options.
+     *
+     * @return {Number} The number of matches.
+     */
+
+  }, {
+    key: "countWhere",
+    value: function countWhere(options) {
+      return this.getAllWhere(options).length;
     }
 
     /**
@@ -1110,7 +1177,7 @@ var Queriable = function () {
   }, {
     key: "first",
     value: function first() {
-      return this.__getArray(secretKey)[0];
+      return this.get()[0];
     }
 
     /**
@@ -1120,7 +1187,7 @@ var Queriable = function () {
   }, {
     key: "rest",
     value: function rest() {
-      var arr = this.__getArray(secretKey);
+      var arr = this.get();
       return arr.slice(1);
     }
 
@@ -1131,7 +1198,7 @@ var Queriable = function () {
   }, {
     key: "last",
     value: function last() {
-      var arr = this.__getArray(secretKey);
+      var arr = this.get();
       return arr[arr.length - 1];
     }
 
@@ -1142,7 +1209,7 @@ var Queriable = function () {
   }, {
     key: "lead",
     value: function lead() {
-      var arr = this.__getArray(secretKey);
+      var arr = this.get();
       return arr.slice(0, arr.length - 1);
     }
 
@@ -1153,7 +1220,7 @@ var Queriable = function () {
   }, {
     key: "random",
     value: function random() {
-      var arr = this.__getArray(secretKey);
+      var arr = this.get();
       return arr[Math.floor(Math.random() * arr.length)];
     }
   }]);
@@ -24356,7 +24423,14 @@ var When = function When(props) {
   if (vetted.resolves) {
 
     if (vetted.hasChildren) {
-      return _react2.default.cloneElement(props.children, removeProps(props, ['component', 'preVet'].concat(EXCLUSIVE_PROPS)), props.children.children);
+      var childIsNativeDom = typeof props.children.type === 'string' && /^[a-z]/.test(props.children.type);
+      var propsToRemove = ['component', 'preVet'].concat(EXCLUSIVE_PROPS);
+
+      if (childIsNativeDom) {
+        propsToRemove.push('location');
+      }
+
+      return _react2.default.cloneElement(props.children, removeProps(props, propsToRemove), props.children.props.children);
     } else {
       return _react2.default.createElement(props.component, removeProps(props, ['component', 'preVet'].concat(EXCLUSIVE_PROPS)), props.children);
     }
@@ -24373,7 +24447,7 @@ var When = function When(props) {
  */
 var Otherwise = function Otherwise(props) {
   if (!props.preVet) {
-    throw createerror('\n        The `Otherwise` component can only be used as a child of the\n        `Switch` component. Otherwise it\'s redundant.\n      ');
+    throw createError('\n        The `Otherwise` component can only be used as a child of the\n        `Switch` component. Otherwise it\'s redundant.\n      ');
   } else {
     var cleanProps = removeProps(props, EXCLUSIVE_PROPS);
     var newProps = Object.assign({}, cleanProps, { isTrue: true });

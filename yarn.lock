@@ -3419,9 +3419,9 @@ react-dom@^15.5.4:
     object-assign "^4.1.0"
     prop-types "~15.5.7"
 
-react-pathway@^0.0.1:
-  version "0.0.1"
-  resolved "https://registry.yarnpkg.com/react-pathway/-/react-pathway-0.0.1.tgz#7958bd28ff352376101e935f8093b02449b34d36"
+react-pathway@^0.0.2:
+  version "0.0.2"
+  resolved "https://registry.yarnpkg.com/react-pathway/-/react-pathway-0.0.2.tgz#ca849434b38698ec09cd0a8ff62cb9302c1f49fa"
 
 react-redux-infuser@^0.0.4:
   version "0.0.4"
