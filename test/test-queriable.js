@@ -96,12 +96,12 @@ describe('Queriable Arrays', function () {
 
   it('should count the items matching a query', function () {
     const q = queriable(base());
-    assert.equal(q.countWhere({ firstName: 'John' }), 2);
+    assert.equal(q.countAllWhere({ firstName: 'John' }), 2);
   })
 
   it('should subtract the items matching a query', function () {
     const q = queriable(base());
-    assert.equal(q.subtractWhere({ firstName: 'John' }).length, 1);
+    assert.equal(q.subtractAllWhere({ firstName: 'John' }).length, 1);
   })
 
   it('should subtract the first item matching a query', function () {
@@ -112,14 +112,14 @@ describe('Queriable Arrays', function () {
   it('should update the items matching a query', function () {
     const baseArray = base();
     const q = queriable(baseArray);
-    const updated = q.updateWhere({ firstName: 'John' }, { firstName: 'Patrick' });
+    const updated = q.updateAllWhere({ firstName: 'John' }, { firstName: 'Patrick' });
     assert.equal(queriable(updated).getAllWhere({firstName: 'Patrick'}).length, 2);
   })
 
   it('should update the items matching a query via a function', function () {
     const baseArray = base();
     const q = queriable(baseArray);
-    const updated = q.updateWhere({ firstName: 'John' }, item => {
+    const updated = q.updateAllWhere({ firstName: 'John' }, item => {
       item.firstName = 'Patrick';
       return item;
     });

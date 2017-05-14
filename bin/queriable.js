@@ -163,8 +163,8 @@ var Queriable = function () {
      */
 
   }, {
-    key: 'updateWhere',
-    value: function updateWhere(options, updates) {
+    key: 'updateAllWhere',
+    value: function updateAllWhere(options, updates) {
       var optionKeys = Object.keys(options);
       var updatesIsFn = typeof updates === 'function';
       var updateKeys = updatesIsFn ? null : Object.keys(updates);
@@ -235,7 +235,7 @@ var Queriable = function () {
   }, {
     key: 'updateAll',
     value: function updateAll(updates) {
-      return this.updateWhere(secretKey, updates);
+      return this.updateAllWhere(secretKey, updates);
     }
 
     /**
@@ -265,8 +265,8 @@ var Queriable = function () {
      */
 
   }, {
-    key: 'subtractWhere',
-    value: function subtractWhere(options) {
+    key: 'subtractAllWhere',
+    value: function subtractAllWhere(options) {
       var keys = Object.keys(options);
       return this.get(secretKey).filter(function (item) {
         if (isMatch(item, options, keys)) {
@@ -315,8 +315,8 @@ var Queriable = function () {
      */
 
   }, {
-    key: 'countWhere',
-    value: function countWhere(options) {
+    key: 'countAllWhere',
+    value: function countAllWhere(options) {
       return this.getAllWhere(options).length;
     }
 

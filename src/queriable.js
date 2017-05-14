@@ -126,7 +126,7 @@ class Queriable {
    *
    * @return {Array} Contains all the objects; contains the updates.
    */
-  updateWhere(options, updates) {
+  updateAllWhere(options, updates) {
     const optionKeys  = Object.keys(options);
     const updatesIsFn = typeof updates === 'function';
     const updateKeys  = updatesIsFn ? null : Object.keys(updates);
@@ -191,7 +191,7 @@ class Queriable {
    * @return {Array} Contains all of the updates.
    */
   updateAll(updates) {
-    return this.updateWhere(secretKey, updates);
+    return this.updateAllWhere(secretKey, updates);
   }
 
   /**
@@ -216,7 +216,7 @@ class Queriable {
    *
    * @return {Array} A new array where an item has been removed.
    */
-  subtractWhere(options) {
+  subtractAllWhere(options) {
     const keys = Object.keys(options);
     return this.get(secretKey).filter(item => {
       if (isMatch(item, options, keys)) {
@@ -257,7 +257,7 @@ class Queriable {
    *
    * @return {Number} The number of matches.
    */
-  countWhere(options) {
+  countAllWhere(options) {
     return this.getAllWhere(options).length;
   }
 
