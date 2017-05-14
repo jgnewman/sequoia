@@ -53,14 +53,29 @@ class Queriable {
 
   /**
    * Get an item from the array or the whole array.
+   * NOTE: Returns a NEW array.
    *
-   * @param  {Number} index  The index of the item to get.
+   * @param  {Number|Symbol} index  The index of the item to get.
+   *                                If `secretKey`, returns the original array.
    *
    * @return {Any} The retrieved item.
    */
   get(index) {
     const arr = this.__getArray(secretKey);
-    return index === undefined ? arr : arr[index];
+    if (index === secretKey) {
+      return arr;
+    } else {
+      return index === undefined ? arr.slice() : arr[index];
+    }
+  }
+
+  /**
+   * Get the original array used for the queriable.
+   *
+   * @return {Array} The original array.
+   */
+  getOriginal() {
+    return this.get(secretKey);
   }
 
   /**
@@ -71,7 +86,7 @@ class Queriable {
    * @return {Any} The index of the first match.
    */
   getIndexWhere(options) {
-    return findMatchFor(options, this.get()).index;
+    return findMatchFor(options, this.get(secretKey)).index;
   }
 
   /**
@@ -82,7 +97,7 @@ class Queriable {
    * @return {Any} The first match.
    */
   getOneWhere(options) {
-    return findMatchFor(options, this.get()).item;
+    return findMatchFor(options, this.get(secretKey)).item;
   }
 
   /**
@@ -94,7 +109,7 @@ class Queriable {
    */
   getAllWhere(options) {
     const keys = Object.keys(options);
-    return this.get().filter(item => {
+    return this.get(secretKey).filter(item => {
       return isMatch(item, options, keys);
     })
   }
@@ -103,23 +118,45 @@ class Queriable {
    * Updates matches in an array of objects.
    * NOTE: Returns a NEW array.
    *
-   * @param  {Object} options  Properties to match on each object.
-   * @param  {Object} updates  The updates to make to matching objects.
+   * @param  {Object|Symbol}   options  Properties to match on each object.
+   *                                    If `secretKey`, we'll automatch every item.
+   * @param  {Object|Function} updates  The updates to make to matching objects.
+   *                                    If a function, takes the item to update.
+   *                                    Should return a new version of the item.
    *
    * @return {Array} Contains all the objects; contains the updates.
    */
   updateWhere(options, updates) {
-    const optionKeys = Object.keys(options);
-    const updateKeys = Object.keys(updates);
+    const optionKeys  = Object.keys(options);
+    const updatesIsFn = typeof updates === 'function';
+    const updateKeys  = updatesIsFn ? null : Object.keys(updates);
 
-    return this.get().map(item => {
-      if (isMatch(item, options, optionKeys)) {
-        updateKeys.forEach(key => {
-          item[key] = updates[key];
-        });
+    return this.get(secretKey).map(item => {
+      if (options === secretKey || isMatch(item, options, optionKeys)) {
+        if (updatesIsFn) {
+          return updates(item);
+        } else {
+          updateKeys.forEach(key => {
+            item[key] = updates[key];
+          });
+        }
       }
       return item;
     })
+  }
+
+  /**
+   * Allows updating all items in the array.
+   * NOTE: Returns a NEW array.
+   *
+   * @param  {Object|Function} updates  The updates to make to matching objects.
+   *                                    If a function, takes the item to update.
+   *                                    Should return a new version of the item.
+   *
+   * @return {Array} Contains all of the updates.
+   */
+  updateAll(updates) {
+    return this.updateWhere(secretKey, updates);
   }
 
   /**
@@ -131,7 +168,7 @@ class Queriable {
    * @return {Array} A new array where an item has been removed.
    */
   subtract(index) {
-    const arr = this.get().slice();
+    const arr = this.get(secretKey).slice();
     arr.splice(index, 1);
     return arr;
   }
@@ -146,7 +183,7 @@ class Queriable {
    */
   subtractWhere(options) {
     const keys = Object.keys(options);
-    return this.get().filter(item => {
+    return this.get(secretKey).filter(item => {
       if (isMatch(item, options, keys)) {
         return false;
       }
@@ -160,7 +197,7 @@ class Queriable {
    * @return {Number} The number of items in the array.
    */
   count() {
-    return this.get().length;
+    return this.get(secretKey).length;
   }
 
   /**
@@ -176,14 +213,14 @@ class Queriable {
    * Get the first item in the array.
    */
   first() {
-    return this.get()[0];
+    return this.get(secretKey)[0];
   }
 
   /**
    * Get ALL BUT the first item in the array.
    */
   rest() {
-    const arr = this.get();
+    const arr = this.get(secretKey);
     return arr.slice(1);
   }
 
@@ -191,7 +228,7 @@ class Queriable {
    * Get the last item in the array.
    */
   last() {
-    const arr = this.get();
+    const arr = this.get(secretKey);
     return arr[arr.length - 1];
   }
 
@@ -199,7 +236,7 @@ class Queriable {
    * Get ALL BUT the last item in the array.
    */
   lead() {
-    const arr = this.get();
+    const arr = this.get(secretKey);
     return arr.slice(0, arr.length - 1);
   }
 
@@ -207,8 +244,36 @@ class Queriable {
    * Get a random item in the array.
    */
   random() {
-    const arr = this.get();
+    const arr = this.get(secretKey);
     return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+  /**
+   * Add a new item to the front of the array.
+   * NOTE: Returns a NEW array.
+   *
+   * @param  {Object} item  To be added.
+   *
+   * @return {Array} Includees the new item.
+   */
+  prepend(item) {
+    const arr = this.get(secretKey).slice();
+    arr.unshift(item);
+    return arr;
+  }
+
+  /**
+   * Add a new item to the back of the array.
+   * NOTE: Returns a NEW array.
+   *
+   * @param  {Object} item  To be added.
+   *
+   * @return {Array} Includees the new item.
+   */
+  append(item) {
+    const arr = this.get(secretKey).slice();
+    arr.push(item);
+    return arr;
   }
 
 }

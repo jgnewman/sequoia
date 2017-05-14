@@ -15,10 +15,17 @@ describe('Queriable Arrays', function () {
     assert.equal(typeof queriable(base()), 'object')
   })
 
+  it('should return a copy of the original array', function () {
+    const baseArray = base();
+    const q = queriable(baseArray);
+    assert.notEqual(q.get(), baseArray);
+    assert.deepEqual(q.get(), baseArray);
+  })
+
   it('should return the original array', function () {
     const baseArray = base();
     const q = queriable(baseArray);
-    assert.equal(q.get(), baseArray);
+    assert.equal(q.getOriginal(), baseArray);
   })
 
   it('should return an item by index from the array', function () {
@@ -102,6 +109,41 @@ describe('Queriable Arrays', function () {
     const q = queriable(baseArray);
     const updated = q.updateWhere({ firstName: 'John' }, { firstName: 'Patrick' });
     assert.equal(queriable(updated).getAllWhere({firstName: 'Patrick'}).length, 2);
+  })
+
+  it('should update the items matching a query via a function', function () {
+    const baseArray = base();
+    const q = queriable(baseArray);
+    const updated = q.updateWhere({ firstName: 'John' }, item => {
+      item.firstName = 'Patrick';
+      return item;
+    });
+    assert.equal(queriable(updated).getAllWhere({firstName: 'Patrick'}).length, 2);
+  })
+
+  it('should update all the items', function () {
+    const baseArray = base();
+    const q = queriable(baseArray);
+    const updated = q.updateAll({ firstName: 'Patrick' });
+    assert.equal(queriable(updated).getAllWhere({firstName: 'Patrick'}).length, 3);
+  })
+
+  it('should prepend an item', function () {
+    const baseArray = base();
+    const q = queriable(baseArray);
+    const newItem = {id: 3, firstName: 'New', lastName: 'Item'};
+    const updated = q.prepend(newItem);
+    assert.equal(updated.length, 4);
+    assert.equal(updated[0], newItem);
+  })
+
+  it('should append an item', function () {
+    const baseArray = base();
+    const q = queriable(baseArray);
+    const newItem = {id: 3, firstName: 'New', lastName: 'Item'};
+    const updated = q.append(newItem);
+    assert.equal(updated.length, 4);
+    assert.equal(updated[3], newItem);
   })
 
 })

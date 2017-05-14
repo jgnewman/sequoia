@@ -938,7 +938,7 @@ exports.queriable = _queriable2.default; /*
                                           */
 
 },{"./component":1,"./constants":2,"./data":3,"./queriable":5,"./store":6,"react-pathway":213,"uuid":279}],5:[function(require,module,exports){
-"use strict";
+'use strict';
 
 Object.defineProperty(exports, "__esModule", {
   value: true
@@ -1031,7 +1031,7 @@ var Queriable = function () {
    */
 
   _createClass(Queriable, [{
-    key: "get",
+    key: 'get',
     value: function get(index) {
       var arr = this.__getArray(secretKey);
       return index === undefined ? arr : arr[index];
@@ -1046,7 +1046,7 @@ var Queriable = function () {
      */
 
   }, {
-    key: "getIndexWhere",
+    key: 'getIndexWhere',
     value: function getIndexWhere(options) {
       return findMatchFor(options, this.get()).index;
     }
@@ -1060,7 +1060,7 @@ var Queriable = function () {
      */
 
   }, {
-    key: "getOneWhere",
+    key: 'getOneWhere',
     value: function getOneWhere(options) {
       return findMatchFor(options, this.get()).item;
     }
@@ -1074,7 +1074,7 @@ var Queriable = function () {
      */
 
   }, {
-    key: "getAllWhere",
+    key: 'getAllWhere',
     value: function getAllWhere(options) {
       var keys = Object.keys(options);
       return this.get().filter(function (item) {
@@ -1086,26 +1086,51 @@ var Queriable = function () {
      * Updates matches in an array of objects.
      * NOTE: Returns a NEW array.
      *
-     * @param  {Object} options  Properties to match on each object.
-     * @param  {Object} updates  The updates to make to matching objects.
+     * @param  {Object|Symbol}   options  Properties to match on each object.
+     *                                    If `secretKey`, we'll automatch every item.
+     * @param  {Object|Function} updates  The updates to make to matching objects.
+     *                                    If a function, takes the item to update.
+     *                                    Should return a new version of the item.
      *
      * @return {Array} Contains all the objects; contains the updates.
      */
 
   }, {
-    key: "updateWhere",
+    key: 'updateWhere',
     value: function updateWhere(options, updates) {
       var optionKeys = Object.keys(options);
-      var updateKeys = Object.keys(updates);
+      var updatesIsFn = typeof updates === 'function';
+      var updateKeys = updatesIsFn ? null : Object.keys(updates);
 
       return this.get().map(function (item) {
-        if (isMatch(item, options, optionKeys)) {
-          updateKeys.forEach(function (key) {
-            item[key] = updates[key];
-          });
+        if (options === secretKey || isMatch(item, options, optionKeys)) {
+          if (updatesIsFn) {
+            return updates(item);
+          } else {
+            updateKeys.forEach(function (key) {
+              item[key] = updates[key];
+            });
+          }
         }
         return item;
       });
+    }
+
+    /**
+     * Allows updating all items in the array.
+     * NOTE: Returns a NEW array.
+     *
+     * @param  {Object|Function} updates  The updates to make to matching objects.
+     *                                    If a function, takes the item to update.
+     *                                    Should return a new version of the item.
+     *
+     * @return {Array} Contains all of the updates
+     */
+
+  }, {
+    key: 'updateAll',
+    value: function updateAll(updates) {
+      return this.updateWhere(secretKey, updates);
     }
 
     /**
@@ -1118,7 +1143,7 @@ var Queriable = function () {
      */
 
   }, {
-    key: "subtract",
+    key: 'subtract',
     value: function subtract(index) {
       var arr = this.get().slice();
       arr.splice(index, 1);
@@ -1135,7 +1160,7 @@ var Queriable = function () {
      */
 
   }, {
-    key: "subtractWhere",
+    key: 'subtractWhere',
     value: function subtractWhere(options) {
       var keys = Object.keys(options);
       return this.get().filter(function (item) {
@@ -1153,7 +1178,7 @@ var Queriable = function () {
      */
 
   }, {
-    key: "count",
+    key: 'count',
     value: function count() {
       return this.get().length;
     }
@@ -1165,7 +1190,7 @@ var Queriable = function () {
      */
 
   }, {
-    key: "countWhere",
+    key: 'countWhere',
     value: function countWhere(options) {
       return this.getAllWhere(options).length;
     }
@@ -1175,7 +1200,7 @@ var Queriable = function () {
      */
 
   }, {
-    key: "first",
+    key: 'first',
     value: function first() {
       return this.get()[0];
     }
@@ -1185,7 +1210,7 @@ var Queriable = function () {
      */
 
   }, {
-    key: "rest",
+    key: 'rest',
     value: function rest() {
       var arr = this.get();
       return arr.slice(1);
@@ -1196,7 +1221,7 @@ var Queriable = function () {
      */
 
   }, {
-    key: "last",
+    key: 'last',
     value: function last() {
       var arr = this.get();
       return arr[arr.length - 1];
@@ -1207,7 +1232,7 @@ var Queriable = function () {
      */
 
   }, {
-    key: "lead",
+    key: 'lead',
     value: function lead() {
       var arr = this.get();
       return arr.slice(0, arr.length - 1);
@@ -1218,10 +1243,44 @@ var Queriable = function () {
      */
 
   }, {
-    key: "random",
+    key: 'random',
     value: function random() {
       var arr = this.get();
       return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    /**
+     * Add a new item to the front of the array.
+     * NOTE: Returns a NEW array.
+     *
+     * @param  {Object} item  To be added.
+     *
+     * @return {Array} Includees the new item.
+     */
+
+  }, {
+    key: 'prepend',
+    value: function prepend(item) {
+      var arr = this.get().slice();
+      arr.unshift(item);
+      return arr;
+    }
+
+    /**
+     * Add a new item to the back of the array.
+     * NOTE: Returns a NEW array.
+     *
+     * @param  {Object} item  To be added.
+     *
+     * @return {Array} Includees the new item.
+     */
+
+  }, {
+    key: 'append',
+    value: function append(item) {
+      var arr = this.get().slice();
+      arr.push(item);
+      return arr;
     }
   }]);
 
@@ -1313,6 +1372,19 @@ function devToolsCompose(disableDevTools) {
 }
 
 /**
+ * A wrapper for Object.assign making it just a little nicer
+ * to create a new state.
+ *
+ * @param  {Object} state    A state object.
+ * @param  {Object} newVals  The changes to the state.
+ *
+ * @return {Object} A new state containing the merges.
+ */
+function update(state, newVals) {
+  return Object.assign({}, state, newVals);
+}
+
+/**
  * Get state from the global store.
  *
  * @param  {String} appId  The unique ID for this app
@@ -1387,7 +1459,7 @@ function initializeStore(settings, appId) {
   Object.keys(reducers).forEach(function (key) {
     var reducer = reducers[key];
     if (reducer instanceof Reducer) {
-      reducers[key] = reducer.reducer(initialState);
+      reducers[key] = reducer.reducer(initialState, update);
     }
   });
 
@@ -1606,16 +1678,16 @@ var AppContainer = (0, _index.component)(function (_ref) {
     },
 
     reducers: {
-      foo: (0, _index.reduce)(function (initialState) {
+      foo: (0, _index.reduce)(function (initialState, update) {
         return function () {
           var state = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : initialState.foo;
           var action = arguments[1];
 
           switch (action.type) {
             case _index.constants.FOOA():
-              return Object.assign({}, state, { a: state.a + 1 });
+              return update(state, { a: state.a + 1 });
             case _index.constants.FOOB():
-              return Object.assign({}, state, { b: state.b + 2 });
+              return update(state, { b: state.b + 2 });
             default:
               return state;
           }

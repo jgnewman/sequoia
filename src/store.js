@@ -28,6 +28,19 @@ function devToolsCompose(disableDevTools, ...args) {
 }
 
 /**
+ * A wrapper for Object.assign making it just a little nicer
+ * to create a new state.
+ *
+ * @param  {Object} state    A state object.
+ * @param  {Object} newVals  The changes to the state.
+ *
+ * @return {Object} A new state containing the merges.
+ */
+function update(state, newVals) {
+  return Object.assign({}, state, newVals);
+}
+
+/**
  * Get state from the global store.
  *
  * @param  {String} appId  The unique ID for this app
@@ -99,7 +112,7 @@ export function initializeStore(settings, appId) {
   Object.keys(reducers).forEach(key => {
     const reducer = reducers[key];
     if (reducer instanceof Reducer) {
-      reducers[key] = reducer.reducer(initialState);
+      reducers[key] = reducer.reducer(initialState, update);
     }
   });
 

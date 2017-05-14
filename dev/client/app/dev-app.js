@@ -101,12 +101,12 @@ render(<AppContainer />, {
     },
 
     reducers: {
-      foo: reduce(initialState => (state=initialState.foo, action) => {
+      foo: reduce((initialState, update) => (state=initialState.foo, action) => {
         switch(action.type) {
           case constants.FOOA():
-            return Object.assign({}, state, { a: state.a + 1})
+            return update(state, { a: state.a + 1})
           case constants.FOOB():
-            return Object.assign({}, state, { b: state.b + 2})
+            return update(state, { b: state.b + 2})
           default:
             return state;
         }

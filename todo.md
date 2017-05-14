@@ -35,3 +35,6 @@
 - [x] queriable.countWhere
 - [x] queriable.updateWhere
 - [x] queriable.subtractWhere
+- [x] updateWhere should be able to take a function
+- [ ] more queriable methods
+- [ ] is there a nicer way to update state than Object.assign?
