@@ -104,6 +104,11 @@ describe('Queriable Arrays', function () {
     assert.equal(q.subtractWhere({ firstName: 'John' }).length, 1);
   })
 
+  it('should subtract the first item matching a query', function () {
+    const q = queriable(base());
+    assert.equal(q.subtractOneWhere({ firstName: 'John' }).length, 2);
+  })
+
   it('should update the items matching a query', function () {
     const baseArray = base();
     const q = queriable(baseArray);
@@ -144,6 +149,23 @@ describe('Queriable Arrays', function () {
     const updated = q.append(newItem);
     assert.equal(updated.length, 4);
     assert.equal(updated[3], newItem);
+  })
+
+  it('should update the first item matching a query', function () {
+    const baseArray = base();
+    const q = queriable(baseArray);
+    const updated = q.updateOneWhere({ firstName: 'John' }, { firstName: 'Patrick' });
+    assert.equal(queriable(updated).getAllWhere({firstName: 'Patrick'}).length, 1);
+  })
+
+  it('should update the first item matching a query via a function', function () {
+    const baseArray = base();
+    const q = queriable(baseArray);
+    const updated = q.updateOneWhere({ firstName: 'John' }, item => {
+      item.firstName = 'Patrick';
+      return item;
+    });
+    assert.equal(queriable(updated).getAllWhere({firstName: 'Patrick'}).length, 1);
   })
 
 })

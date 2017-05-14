@@ -36,5 +36,7 @@
 - [x] queriable.updateWhere
 - [x] queriable.subtractWhere
 - [x] updateWhere should be able to take a function
-- [ ] more queriable methods
-- [ ] is there a nicer way to update state than Object.assign?
+- [x] more queriable methods
+- [x] is there a nicer way to update state than Object.assign?
+- [x] queriable.updateOneWhere
+- [x] queriable.subtractOneWhere

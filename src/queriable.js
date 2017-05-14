@@ -146,6 +146,41 @@ class Queriable {
   }
 
   /**
+   * Find a single item matching the options and update it
+   * then return a new array containing the updates.
+   *
+   * @param  {Object} options           Properties to match against.
+   * @param  {Object|Function} updates  The updates to make to matching objects.
+   *                                    If a function, takes the item to update.
+   *                                    Should return a new version of the item.
+   *
+   * @return {Array} Contains all the objects; contains the updates.
+   */
+  updateOneWhere(options, updates) {
+    const found = findMatchFor(options, this.get(secretKey));
+    const updatesIsFn = typeof updates === 'function';
+    const arrCopy = this.get();
+
+    if (found.index === -1) {
+      return arrCopy;
+    } else {
+      let item = found.item;
+      const index = found.index;
+
+      if (updatesIsFn) {
+        item = updates(item);
+      } else {
+        Object.keys(updates).forEach(key => {
+          item[key] = updates[key];
+        })
+      }
+
+      arrCopy[index] = item;
+      return arrCopy;
+    }
+  }
+
+  /**
    * Allows updating all items in the array.
    * NOTE: Returns a NEW array.
    *
@@ -189,6 +224,23 @@ class Queriable {
       }
       return true;
     })
+  }
+
+  /**
+   * Remove the first item from the array that matches the query and
+   * return a new array.
+   *
+   * @param  {Object} options Properties to match on each object.
+   *
+   * @return {Array} A new array where an item has been removed.
+   */
+  subtractOneWhere(options) {
+    const found = findMatchFor(options, this.get(secretKey));
+    const arrCopy = this.get();
+    if (found.index > -1) {
+      arrCopy.splice(found.index, 1);
+    }
+    return arrCopy;
   }
 
   /**

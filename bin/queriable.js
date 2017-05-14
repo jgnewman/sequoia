@@ -184,6 +184,44 @@ var Queriable = function () {
     }
 
     /**
+     * Find a single item matching the options and update it
+     * then return a new array containing the updates.
+     *
+     * @param  {Object} options           Properties to match against.
+     * @param  {Object|Function} updates  The updates to make to matching objects.
+     *                                    If a function, takes the item to update.
+     *                                    Should return a new version of the item.
+     *
+     * @return {Array} Contains all the objects; contains the updates.
+     */
+
+  }, {
+    key: 'updateOneWhere',
+    value: function updateOneWhere(options, updates) {
+      var found = findMatchFor(options, this.get(secretKey));
+      var updatesIsFn = typeof updates === 'function';
+      var arrCopy = this.get();
+
+      if (found.index === -1) {
+        return arrCopy;
+      } else {
+        var item = found.item;
+        var index = found.index;
+
+        if (updatesIsFn) {
+          item = updates(item);
+        } else {
+          Object.keys(updates).forEach(function (key) {
+            item[key] = updates[key];
+          });
+        }
+
+        arrCopy[index] = item;
+        return arrCopy;
+      }
+    }
+
+    /**
      * Allows updating all items in the array.
      * NOTE: Returns a NEW array.
      *
@@ -236,6 +274,26 @@ var Queriable = function () {
         }
         return true;
       });
+    }
+
+    /**
+     * Remove the first item from the array that matches the query and
+     * return a new array.
+     *
+     * @param  {Object} options Properties to match on each object.
+     *
+     * @return {Array} A new array where an item has been removed.
+     */
+
+  }, {
+    key: 'subtractOneWhere',
+    value: function subtractOneWhere(options) {
+      var found = findMatchFor(options, this.get(secretKey));
+      var arrCopy = this.get();
+      if (found.index > -1) {
+        arrCopy.splice(found.index, 1);
+      }
+      return arrCopy;
     }
 
     /**
