@@ -6,8 +6,9 @@ import uuid from 'uuid';
 import { Provider } from 'react-redux';
 import { createConstantsFromArray } from './constants';
 import { createRestfulAction, DataAPI } from './data';
+import { LocationAPI } from './routing';
 import { getState, dispatchToState, initializeStore, reduce } from './store';
-import { createError, assertNesting, toggleSymbols } from './utils';
+import { internals, createError, assertNesting, toggleSymbols } from './utils';
 
 /*
  * First things first: You should never have to import react proper.
@@ -125,9 +126,11 @@ function generateComponentTools(cache) {
  * @return {Component} A react component.
  */
 export function component(componentFunction) {
-  const toggler = toggleSymbols();
+  const dataToggler     = toggleSymbols();
+  const locationToggler = toggleSymbols();
   let appId;
   let dataCache;
+  let locationCache;
 
   /*
    * Create the tools that will get passed into the componentFunction.
@@ -136,6 +139,17 @@ export function component(componentFunction) {
   const tools    = generateComponentTools(setup);
   const getAppId = () => appId;
   const dataAPI  = new DataAPI(getState, dispatchToState, getAppId)
+  const locAPI   = new LocationAPI(getState, getAppId)
+
+  /*
+   * Create a reference capturer.
+   */
+  const capture = () => {
+    const capturer = name => {
+      return elem => elem && (capturer[name] = () => elem)
+    }
+    return capturer;
+  }
 
   /*
    * Call the componentFunction with its controller functions.
@@ -157,36 +171,55 @@ export function component(componentFunction) {
   }
 
   /*
-   * Automatically give the user the data module.
+   * Automatically give the user the data module, a location module, and
+   * a reference capture mechanism.
    */
-  tools.infuseModules('data', dataAPI);
+  tools.infuseModules({
+    data: dataAPI,
+    location: locAPI,
+    capture: capture
+  });
 
   /*
    * This part is a little bit of magic. Essentially, we need components to re-render
-   * whenever data updates so data api functions within render methods will actually
+   * whenever data/location updates so their api functions within render methods will actually
    * run. However, we don't want to pass the data itself into the props because the
    * whole point is to not give users tools to screw themselves over.
    *
-   * So here we infuse a prop called `__dataSymbol` whose value will always be
+   * So here we infuse a prop called `__dataSymbol/__locationSymbol` whose value will always be
    * one of two Symbol constants, making it useless to the user. Whenever the state updates,
-   * we'll check to see if @@SP_DATA has been updated. If so, we'll toggle the symbols,
+   * we'll check to see if @@SQ_DATA/@@SQ_ROUTING has been updated. If so, we'll toggle the symbols,
    * thus causing the component to re-render. If not, we'll return the current symbol
    * and the compnent will not necessarily re-render.
    */
   tools.infuseState(state => {
     const out = {};
-    if (dataCache === state['@@SP_DATA']) {
-      out.__dataSymbol = toggler.current();
+
+    /*
+     * Handle data toggles
+     */
+    if (dataCache === state[internals.DATA]) {
+      out.__dataSymbol = dataToggler.current();
     } else {
-      out.__dataSymbol = toggler();
-      dataCache = state['@@SP_DATA'];
+      out.__dataSymbol = dataToggler();
+      dataCache = state[internals.DATA];
+    }
+
+    /*
+     * Handle location toggles
+     */
+    if (locationCache === state[internals.ROUTING]) {
+      out.__locationSymbol = locationToggler.current();
+    } else {
+      out.__locationSymbol = locationToggler();
+      locationCache = state[internals.ROUTING];
     }
 
     /*
      * Take this opportunity to make sure the data API can
      * access the APP ID.
      */
-    appId = appId || state['@@SP_APP_META'].appId;
+    appId = appId || state[internals.APP_META].appId;
     return out;
   })
 

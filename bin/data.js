@@ -26,7 +26,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-var stateKey = Symbol();
+var STATEKEY = Symbol();
 
 /**
  * Triggers a call through axios associated with a property on the
@@ -49,7 +49,7 @@ function performRestfulAction(settings, extras, dispatch) {
    */
   .then(function (result) {
     dispatch({
-      type: '@@SP_DATA_TO_SUCCESS',
+      type: _utils.internals.DATA_TO_SUCCESS,
       payload: {
         id: settings.id,
         status: result.status,
@@ -69,7 +69,7 @@ function performRestfulAction(settings, extras, dispatch) {
   .catch(function (err) {
     var response = err.response || {};
     dispatch({
-      type: '@@SP_DATA_TO_ERROR',
+      type: _utils.internals.DATA_TO_ERROR,
       payload: {
         id: settings.id,
         status: response.status,
@@ -85,7 +85,7 @@ function performRestfulAction(settings, extras, dispatch) {
    * As the request is being made, mark it as pending.
    */
   dispatch({
-    type: '@@SP_DATA_TO_PENDING',
+    type: _utils.internals.DATA_TO_PENDING,
     payload: {
       id: settings.id
     }
@@ -140,7 +140,7 @@ function createRestfulAction(settings) {
  */
 function createRestReducer(initialState) {
   return function () {
-    var state = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : initialState['@@SP_DATA'];
+    var state = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : initialState[_utils.internals.DATA];
     var action = arguments[1];
 
 
@@ -149,7 +149,7 @@ function createRestReducer(initialState) {
 
     switch (action.type) {
 
-      case '@@SP_DATA_TO_DEFAULT':
+      case _utils.internals.DATA_TO_DEFAULT:
         newState[id] = {
           ok: false,
           status: null,
@@ -159,7 +159,7 @@ function createRestReducer(initialState) {
         };
         return Object.assign({}, state, newState);
 
-      case '@@SP_DATA_TO_PENDING':
+      case _utils.internals.DATA_TO_PENDING:
         var prevState = state[id] || {};
         newState[id] = {
           ok: false,
@@ -170,7 +170,7 @@ function createRestReducer(initialState) {
         };
         return Object.assign({}, state, newState);
 
-      case '@@SP_DATA_TO_ERROR':
+      case _utils.internals.DATA_TO_ERROR:
         var errMessage = action.payload.errorMessage;
         var errStatus = action.payload.status;
         newState[id] = {
@@ -182,7 +182,7 @@ function createRestReducer(initialState) {
         };
         return Object.assign({}, state, newState);
 
-      case '@@SP_DATA_TO_SUCCESS':
+      case _utils.internals.DATA_TO_SUCCESS:
         var data = action.payload.data;
         var status = action.payload.status;
         newState[id] = {
@@ -217,10 +217,10 @@ var DataAPI = exports.DataAPI = function () {
     _classCallCheck(this, DataAPI);
 
     this.__getState = function (key) {
-      return key === stateKey ? getState(getAppId()) : null;
+      return key === STATEKEY ? getState(getAppId()) : null;
     };
     this.__dispatch = function (key, action) {
-      return key === stateKey && dispatch(getAppId(), action);
+      return key === STATEKEY && dispatch(getAppId(), action);
     };
   }
 
@@ -237,7 +237,7 @@ var DataAPI = exports.DataAPI = function () {
   _createClass(DataAPI, [{
     key: 'value',
     value: function value(id) {
-      var state = this.__getState(stateKey)['@@SP_DATA'][id];
+      var state = this.__getState(STATEKEY)[_utils.internals.DATA][id];
       return state ? state.data : null;
     }
 
@@ -252,7 +252,7 @@ var DataAPI = exports.DataAPI = function () {
   }, {
     key: 'pending',
     value: function pending(id) {
-      var state = this.__getState(stateKey)['@@SP_DATA'][id];
+      var state = this.__getState(STATEKEY)[_utils.internals.DATA][id];
       return state ? state.pending : false;
     }
 
@@ -270,7 +270,7 @@ var DataAPI = exports.DataAPI = function () {
   }, {
     key: 'ok',
     value: function ok(id) {
-      var state = this.__getState(stateKey)['@@SP_DATA'][id];
+      var state = this.__getState(STATEKEY)[_utils.internals.DATA][id];
       return state ? state.ok : false;
     }
 
@@ -287,7 +287,7 @@ var DataAPI = exports.DataAPI = function () {
   }, {
     key: 'notOk',
     value: function notOk(id) {
-      var state = this.__getState(stateKey)['@@SP_DATA'][id];
+      var state = this.__getState(STATEKEY)[_utils.internals.DATA][id];
       return typeof state.status === 'number' && (state.status < 200 || state.status > 299);
     }
 
@@ -302,7 +302,7 @@ var DataAPI = exports.DataAPI = function () {
   }, {
     key: 'status',
     value: function status(id) {
-      var state = this.__getState(stateKey)['@@SP_DATA'][id];
+      var state = this.__getState(STATEKEY)[_utils.internals.DATA][id];
       return state ? state.status : null;
     }
 
@@ -317,7 +317,7 @@ var DataAPI = exports.DataAPI = function () {
   }, {
     key: 'errorMsg',
     value: function errorMsg(id) {
-      var state = this.__getState(stateKey)['@@SP_DATA'][id];
+      var state = this.__getState(STATEKEY)[_utils.internals.DATA][id];
       return state ? state.errorMessage : null;
     }
 
@@ -332,8 +332,8 @@ var DataAPI = exports.DataAPI = function () {
   }, {
     key: 'reset',
     value: function reset(id) {
-      this.__dispatch(stateKey, {
-        type: '@@SP_DATA_TO_DEFAULT',
+      this.__dispatch(STATEKEY, {
+        type: _utils.internals.DATA_TO_DEFAULT,
         payload: { id: id }
       });
     }

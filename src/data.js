@@ -1,7 +1,7 @@
 import axios from 'axios';
-import { createError } from './utils';
+import { internals, createError } from './utils';
 
-const stateKey = Symbol();
+const STATEKEY = Symbol();
 
 /**
  * Triggers a call through axios associated with a property on the
@@ -24,7 +24,7 @@ function performRestfulAction(settings, extras, dispatch) {
      */
     .then(result => {
       dispatch({
-        type: '@@SP_DATA_TO_SUCCESS',
+        type: internals.DATA_TO_SUCCESS,
         payload: {
           id: settings.id,
           status: result.status,
@@ -42,7 +42,7 @@ function performRestfulAction(settings, extras, dispatch) {
     .catch(err => {
       const response = err.response || {};
       dispatch({
-        type: '@@SP_DATA_TO_ERROR',
+        type: internals.DATA_TO_ERROR,
         payload: {
           id: settings.id,
           status: response.status,
@@ -56,7 +56,7 @@ function performRestfulAction(settings, extras, dispatch) {
    * As the request is being made, mark it as pending.
    */
   dispatch({
-    type: '@@SP_DATA_TO_PENDING',
+    type: internals.DATA_TO_PENDING,
     payload: {
       id: settings.id
     }
@@ -111,14 +111,14 @@ export function createRestfulAction(settings) {
  * @return {Object} The reduced state
  */
 export function createRestReducer(initialState) {
-  return (state=initialState['@@SP_DATA'], action) => {
+  return (state=initialState[internals.DATA], action) => {
 
     const id = action.payload ? action.payload.id : null;
     let newState = {};
 
     switch (action.type) {
 
-      case '@@SP_DATA_TO_DEFAULT':
+      case internals.DATA_TO_DEFAULT:
         newState[id] = {
           ok           : false,
           status       : null,
@@ -128,7 +128,7 @@ export function createRestReducer(initialState) {
         };
         return Object.assign({}, state, newState);
 
-      case '@@SP_DATA_TO_PENDING':
+      case internals.DATA_TO_PENDING:
         const prevState = state[id] || {};
         newState[id] = {
           ok           : false,
@@ -139,7 +139,7 @@ export function createRestReducer(initialState) {
         };
         return Object.assign({}, state, newState);
 
-      case '@@SP_DATA_TO_ERROR':
+      case internals.DATA_TO_ERROR:
         const errMessage = action.payload.errorMessage;
         const errStatus = action.payload.status;
         newState[id] = {
@@ -151,7 +151,7 @@ export function createRestReducer(initialState) {
         };
         return Object.assign({}, state, newState);
 
-      case '@@SP_DATA_TO_SUCCESS':
+      case internals.DATA_TO_SUCCESS:
         const data = action.payload.data;
         const status = action.payload.status;
         newState[id] = {
@@ -182,8 +182,8 @@ export class DataAPI {
    * symbol key in order to use them.
    */
   constructor(getState, dispatch, getAppId) {
-    this.__getState = key => key === stateKey ? getState(getAppId()) : null;
-    this.__dispatch = (key, action) => key === stateKey && dispatch(getAppId(), action);
+    this.__getState = key => key === STATEKEY ? getState(getAppId()) : null;
+    this.__dispatch = (key, action) => key === STATEKEY && dispatch(getAppId(), action);
   }
 
   /**
@@ -195,7 +195,7 @@ export class DataAPI {
    * @return {Serializable} The data if it exists or null.
    */
   value(id) {
-    const state = this.__getState(stateKey)['@@SP_DATA'][id];
+    const state = this.__getState(STATEKEY)[internals.DATA][id];
     return state ? state.data : null;
   }
 
@@ -207,7 +207,7 @@ export class DataAPI {
    * @return {Boolean} Whether we are awaiting a response.
    */
   pending(id) {
-    const state = this.__getState(stateKey)['@@SP_DATA'][id];
+    const state = this.__getState(STATEKEY)[internals.DATA][id];
     return state ? state.pending : false;
   }
 
@@ -222,7 +222,7 @@ export class DataAPI {
    * @return {Boolean}
    */
   ok(id) {
-    const state = this.__getState(stateKey)['@@SP_DATA'][id];
+    const state = this.__getState(STATEKEY)[internals.DATA][id];
     return state ? state.ok : false;
   }
 
@@ -236,7 +236,7 @@ export class DataAPI {
    * @return {Boolean}
    */
   notOk(id) {
-    const state = this.__getState(stateKey)['@@SP_DATA'][id];
+    const state = this.__getState(STATEKEY)[internals.DATA][id];
     return typeof state.status === 'number' && (state.status < 200 || state.status > 299);
   }
 
@@ -248,7 +248,7 @@ export class DataAPI {
    * @return {Number|Null} The status code if it exists or null if not.
    */
   status(id) {
-    const state = this.__getState(stateKey)['@@SP_DATA'][id];
+    const state = this.__getState(STATEKEY)[internals.DATA][id];
     return state ? state.status : null;
   }
 
@@ -260,7 +260,7 @@ export class DataAPI {
    * @return {String|Null} The message if it exists or null
    */
   errorMsg(id) {
-    const state = this.__getState(stateKey)['@@SP_DATA'][id];
+    const state = this.__getState(STATEKEY)[internals.DATA][id];
     return state ? state.errorMessage : null;
   }
 
@@ -272,8 +272,8 @@ export class DataAPI {
    * @return {undefined}
    */
   reset(id) {
-    this.__dispatch(stateKey, {
-      type: '@@SP_DATA_TO_DEFAULT',
+    this.__dispatch(STATEKEY, {
+      type: internals.DATA_TO_DEFAULT,
       payload: { id : id }
     })
   }

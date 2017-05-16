@@ -35,6 +35,8 @@ var _constants = require('./constants');
 
 var _data = require('./data');
 
+var _routing = require('./routing');
+
 var _store = require('./store');
 
 var _utils = require('./utils');
@@ -155,9 +157,11 @@ function generateComponentTools(cache) {
  * @return {Component} A react component.
  */
 function component(componentFunction) {
-  var toggler = (0, _utils.toggleSymbols)();
+  var dataToggler = (0, _utils.toggleSymbols)();
+  var locationToggler = (0, _utils.toggleSymbols)();
   var appId = void 0;
   var dataCache = void 0;
+  var locationCache = void 0;
 
   /*
    * Create the tools that will get passed into the componentFunction.
@@ -168,6 +172,21 @@ function component(componentFunction) {
     return appId;
   };
   var dataAPI = new _data.DataAPI(_store.getState, _store.dispatchToState, getAppId);
+  var locAPI = new _routing.LocationAPI(_store.getState, getAppId);
+
+  /*
+   * Create a reference capturer.
+   */
+  var capture = function capture() {
+    var capturer = function capturer(name) {
+      return function (elem) {
+        return elem && (capturer[name] = function () {
+          return elem;
+        });
+      };
+    };
+    return capturer;
+  };
 
   /*
    * Call the componentFunction with its controller functions.
@@ -184,36 +203,55 @@ function component(componentFunction) {
   }
 
   /*
-   * Automatically give the user the data module.
+   * Automatically give the user the data module, a location module, and
+   * a reference capture mechanism.
    */
-  tools.infuseModules('data', dataAPI);
+  tools.infuseModules({
+    data: dataAPI,
+    location: locAPI,
+    capture: capture
+  });
 
   /*
    * This part is a little bit of magic. Essentially, we need components to re-render
-   * whenever data updates so data api functions within render methods will actually
+   * whenever data/location updates so their api functions within render methods will actually
    * run. However, we don't want to pass the data itself into the props because the
    * whole point is to not give users tools to screw themselves over.
    *
-   * So here we infuse a prop called `__dataSymbol` whose value will always be
+   * So here we infuse a prop called `__dataSymbol/__locationSymbol` whose value will always be
    * one of two Symbol constants, making it useless to the user. Whenever the state updates,
-   * we'll check to see if @@SP_DATA has been updated. If so, we'll toggle the symbols,
+   * we'll check to see if @@SQ_DATA/@@SQ_ROUTING has been updated. If so, we'll toggle the symbols,
    * thus causing the component to re-render. If not, we'll return the current symbol
    * and the compnent will not necessarily re-render.
    */
   tools.infuseState(function (state) {
     var out = {};
-    if (dataCache === state['@@SP_DATA']) {
-      out.__dataSymbol = toggler.current();
+
+    /*
+     * Handle data toggles
+     */
+    if (dataCache === state[_utils.internals.DATA]) {
+      out.__dataSymbol = dataToggler.current();
     } else {
-      out.__dataSymbol = toggler();
-      dataCache = state['@@SP_DATA'];
+      out.__dataSymbol = dataToggler();
+      dataCache = state[_utils.internals.DATA];
+    }
+
+    /*
+     * Handle location toggles
+     */
+    if (locationCache === state[_utils.internals.ROUTING]) {
+      out.__locationSymbol = locationToggler.current();
+    } else {
+      out.__locationSymbol = locationToggler();
+      locationCache = state[_utils.internals.ROUTING];
     }
 
     /*
      * Take this opportunity to make sure the data API can
      * access the APP ID.
      */
-    appId = appId || state['@@SP_APP_META'].appId;
+    appId = appId || state[_utils.internals.APP_META].appId;
     return out;
   });
 

@@ -41,7 +41,6 @@
     "prop-types": "^15.5.8",
     "react": "^15.5.4",
     "react-dom": "^15.5.4",
-    "react-pathway": "^0.0.2",
     "react-redux": "^5.0.4",
     "react-redux-infuser": "^0.0.4",
     "redux": "^3.6.0",

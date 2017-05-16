@@ -1,6 +1,33 @@
 const symbol1 = Symbol();
 const symbol2 = Symbol();
 
+const storeHooks = [];
+
+export const globalStores = {};
+
+export function registerStore(key, store) {
+  globalStores[key] = store;
+  storeHooks.forEach(hook => hook(store));
+}
+
+export function addStoreHook(hook) {
+  storeHooks.push(hook);
+}
+
+/*
+ * Internal constants.
+ */
+export const internals = {
+  APP_META        : '@@SQ_APP_META',
+  DATA            : '@@SQ_DATA',
+  DATA_TO_SUCCESS : '@@SQ_DATA_TO_SUCCESS',
+  DATA_TO_ERROR   : '@@SQ_DATA_TO_ERROR',
+  DATA_TO_PENDING : '@@SQ_DATA_TO_PENDING',
+  DATA_TO_DEFAULT : '@@SQ_DATA_TO_DEFAULT',
+  ROUTING         : '@@SQ_ROUTING',
+  HASH_PATH       : '@@SQ_HASH_PATH'
+};
+
 /**
  * Creates a nice error object. Not automatically thrown.
  *
@@ -45,4 +72,42 @@ export function toggleSymbols() {
   };
   out.current = () => activeSym;
   return out;
+}
+
+/**
+ * Remove all the named properties from an object.
+ *
+ * @param  {Object}  obj   The object to start from.
+ * @param  {Array}   props The names of properties to remove.
+ *
+ * @return {Object}  A new object where `props` have been excluded.
+ */
+export function removeProps(obj, props) {
+  const newObj = {};
+  Object.keys(obj).forEach(key => {
+    if (props.indexOf(key) === -1) {
+      newObj[key] = obj[key];
+    }
+  });
+  return newObj;
+}
+
+/**
+ * Wait until an impure function returns truthily
+ * before executing a callback.
+ *
+ * @param  {Function} resolve  The function we're waiting on.
+ * @param  {Function} callback The callback to execute.
+ *
+ * @return {undefined}
+ */
+export function waitUntil(resolve, callback) {
+  const didResolve = resolve();
+  if (didResolve) {
+    return callback(didResolve);
+  } else {
+    setTimeout(() => {
+      waitUntil(resolve, callback);
+    }, 10)
+  }
 }

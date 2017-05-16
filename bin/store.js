@@ -18,7 +18,11 @@ var _reduxPersist = require('redux-persist');
 
 var _data = require('./data');
 
+var _routing = require('./routing');
+
 var _constants = require('./constants');
+
+var _utils = require('./utils');
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -26,14 +30,11 @@ function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-var globalStores = {};
-
 /**
  * Turns reducer functions into identifiable objects.
  * Doing this allows us to know that the user would like
  * the initial state handed to the reducer.
  */
-
 var Reducer = function Reducer(reducer) {
   _classCallCheck(this, Reducer);
 
@@ -77,7 +78,7 @@ function update(state, newVals) {
  * @return {Object} The current state object
  */
 function getState(appId) {
-  return globalStores[appId].getState();
+  return _utils.globalStores[appId].getState();
 }
 
 /**
@@ -89,7 +90,7 @@ function getState(appId) {
  * @return {undefined}
  */
 function dispatchToState(appId, actionObj) {
-  globalStores[appId].dispatch(actionObj);
+  _utils.globalStores[appId].dispatch(actionObj);
 }
 
 /**
@@ -110,19 +111,25 @@ function initializeStore(settings, appId) {
   /*
    * Attach application metadata to the state.
    */
-  reducers['@@SP_APP_META'] = function () {
-    var state = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : initialState['@@SP_APP_META'];
+  reducers[_utils.internals.APP_META] = function () {
+    var state = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : initialState[_utils.internals.APP_META];
     return state;
   };
-  initialState['@@SP_APP_META'] = {
+  initialState[_utils.internals.APP_META] = {
     appId: appId
   };
 
   /*
    * Attach the REST reducer to the initial state.
    */
-  reducers['@@SP_DATA'] = (0, _data.createRestReducer)(initialState);
-  initialState['@@SP_DATA'] = {};
+  reducers[_utils.internals.DATA] = (0, _data.createRestReducer)(initialState);
+  initialState[_utils.internals.DATA] = {};
+
+  /*
+   * Attach the Route reducer to the initial state.
+   */
+  reducers[_utils.internals.ROUTING] = (0, _routing.createRouteReducer)(initialState);
+  initialState[_utils.internals.ROUTING] = (0, _routing.createLocation)();
 
   /*
    * Allow the user to specify a function or array of functions
@@ -162,12 +169,17 @@ function initializeStore(settings, appId) {
   /*
    * If the user hasn't disable auto persistence, go ahead and set up persist.
    */
-  !persistDisabled && (0, _reduxPersist.persistStore)(store, settings.autoPersistConfig || {}, settings.autoPersistDone || function () {});
+  if (!persistDisabled) {
+    (0, _utils.assertNesting)(settings, 'autoPersistConfig');
+    settings.autoPersistConfig.blackList = settings.autoPersistConfig.blacklist || [];
+    settings.autoPersistConfig.blackList.push(_utils.internals.APP_META);
+    (0, _reduxPersist.persistStore)(store, settings.autoPersistConfig, settings.autoPersistDone || function () {});
+  }
 
   /*
    * Keep track of the store "globally".
    */
-  globalStores[appId] = store;
+  (0, _utils.registerStore)(appId, store);
 
   return store;
 }

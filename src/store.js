@@ -2,9 +2,9 @@ import { createStore, combineReducers, compose, applyMiddleware } from 'redux';
 import thunkware from 'redux-thunk';
 import { persistStore, autoRehydrate } from 'redux-persist';
 import { createRestReducer } from './data';
+import { createRouteReducer, createLocation } from './routing';
 import { createConstants } from './constants';
-
-const globalStores = {};
+import { registerStore, globalStores, internals, assertNesting } from './utils';
 
 /**
  * Turns reducer functions into identifiable objects.
@@ -81,16 +81,22 @@ export function initializeStore(settings, appId) {
   /*
    * Attach application metadata to the state.
    */
-  reducers['@@SP_APP_META'] = (state=initialState['@@SP_APP_META']) => state;
-  initialState['@@SP_APP_META'] = {
+  reducers[internals.APP_META] = (state=initialState[internals.APP_META]) => state;
+  initialState[internals.APP_META] = {
     appId: appId
   };
 
   /*
    * Attach the REST reducer to the initial state.
    */
-  reducers['@@SP_DATA'] = createRestReducer(initialState);
-  initialState['@@SP_DATA'] = {};
+  reducers[internals.DATA] = createRestReducer(initialState);
+  initialState[internals.DATA] = {};
+
+  /*
+   * Attach the Route reducer to the initial state.
+   */
+  reducers[internals.ROUTING] = createRouteReducer(initialState);
+  initialState[internals.ROUTING] = createLocation();
 
   /*
    * Allow the user to specify a function or array of functions
@@ -132,16 +138,21 @@ export function initializeStore(settings, appId) {
   /*
    * If the user hasn't disable auto persistence, go ahead and set up persist.
    */
-  !persistDisabled && persistStore(
-    store,
-    settings.autoPersistConfig || {},
-    settings.autoPersistDone   || function () {}
-  );
+  if (!persistDisabled) {
+    assertNesting(settings, 'autoPersistConfig');
+    settings.autoPersistConfig.blackList = settings.autoPersistConfig.blacklist || [];
+    settings.autoPersistConfig.blackList.push(internals.APP_META);
+    persistStore(
+      store,
+      settings.autoPersistConfig,
+      settings.autoPersistDone || function () {}
+    );
+  }
 
   /*
    * Keep track of the store "globally".
    */
-  globalStores[appId] = store;
+  registerStore(appId, store);
 
   return store;
 }

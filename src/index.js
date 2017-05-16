@@ -2,11 +2,21 @@
  * Export all publicly available functionality.
  */
 
-import queriable from './queriable';
-
-export { queriable };
-export * from 'react-pathway';
+/*
+ * Pass-throughs
+ */
 export { v4 as uuid } from 'uuid';
+
+/*
+ * Import-then-exports
+ */
+import collect from './queriable';
+export { collect };
+
+/*
+ * Direct exports
+ */
+export * from './premade';
 export { reduce } from './store';
 export { component, render } from './component';
 export { constants, createConstant, getConstantName } from './constants';

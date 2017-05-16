@@ -3,19 +3,7 @@
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.deleteData = exports.postData = exports.patchData = exports.getData = exports.dataRequest = exports.getConstantName = exports.createConstant = exports.constants = exports.render = exports.component = exports.reduce = exports.uuid = exports.queriable = undefined;
-
-var _reactPathway = require('react-pathway');
-
-Object.keys(_reactPathway).forEach(function (key) {
-  if (key === "default" || key === "__esModule") return;
-  Object.defineProperty(exports, key, {
-    enumerable: true,
-    get: function get() {
-      return _reactPathway[key];
-    }
-  });
-});
+exports.deleteData = exports.postData = exports.patchData = exports.getData = exports.dataRequest = exports.getConstantName = exports.createConstant = exports.constants = exports.render = exports.component = exports.reduce = exports.collect = exports.uuid = undefined;
 
 var _uuid = require('uuid');
 
@@ -24,6 +12,18 @@ Object.defineProperty(exports, 'uuid', {
   get: function get() {
     return _uuid.v4;
   }
+});
+
+var _premade = require('./premade');
+
+Object.keys(_premade).forEach(function (key) {
+  if (key === "default" || key === "__esModule") return;
+  Object.defineProperty(exports, key, {
+    enumerable: true,
+    get: function get() {
+      return _premade[key];
+    }
+  });
 });
 
 var _store = require('./store');
@@ -110,6 +110,13 @@ var _queriable2 = _interopRequireDefault(_queriable);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-exports.queriable = _queriable2.default; /*
-                                          * Export all publicly available functionality.
-                                          */
+exports.collect = _queriable2.default;
+
+/*
+ * Direct exports
+ */
+
+
+/*
+ * Import-then-exports
+ */

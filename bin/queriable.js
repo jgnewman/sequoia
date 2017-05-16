@@ -6,11 +6,11 @@ Object.defineProperty(exports, "__esModule", {
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
-exports.default = queriable;
+exports.default = collect;
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-var secretKey = Symbol();
+var SECRETKEY = Symbol();
 
 /**
  * Determines whether an item is a match for a collection
@@ -66,7 +66,7 @@ var Queriable = function () {
     _classCallCheck(this, Queriable);
 
     this.__getArray = function (key) {
-      return key === secretKey ? array || [] : null;
+      return key === SECRETKEY ? array || [] : null;
     };
   }
 
@@ -75,7 +75,7 @@ var Queriable = function () {
    * NOTE: Returns a NEW array.
    *
    * @param  {Number|Symbol} index  The index of the item to get.
-   *                                If `secretKey`, returns the original array.
+   *                                If `SECRETKEY`, returns the original array.
    *
    * @return {Any} The retrieved item.
    */
@@ -84,8 +84,8 @@ var Queriable = function () {
   _createClass(Queriable, [{
     key: 'get',
     value: function get(index) {
-      var arr = this.__getArray(secretKey);
-      if (index === secretKey) {
+      var arr = this.__getArray(SECRETKEY);
+      if (index === SECRETKEY) {
         return arr;
       } else {
         return index === undefined ? arr.slice() : arr[index];
@@ -101,7 +101,7 @@ var Queriable = function () {
   }, {
     key: 'getOriginal',
     value: function getOriginal() {
-      return this.get(secretKey);
+      return this.get(SECRETKEY);
     }
 
     /**
@@ -115,7 +115,7 @@ var Queriable = function () {
   }, {
     key: 'getIndexWhere',
     value: function getIndexWhere(options) {
-      return findMatchFor(options, this.get(secretKey)).index;
+      return findMatchFor(options, this.get(SECRETKEY)).index;
     }
 
     /**
@@ -129,7 +129,7 @@ var Queriable = function () {
   }, {
     key: 'getOneWhere',
     value: function getOneWhere(options) {
-      return findMatchFor(options, this.get(secretKey)).item;
+      return findMatchFor(options, this.get(SECRETKEY)).item;
     }
 
     /**
@@ -144,7 +144,7 @@ var Queriable = function () {
     key: 'getAllWhere',
     value: function getAllWhere(options) {
       var keys = Object.keys(options);
-      return this.get(secretKey).filter(function (item) {
+      return this.get(SECRETKEY).filter(function (item) {
         return isMatch(item, options, keys);
       });
     }
@@ -154,7 +154,7 @@ var Queriable = function () {
      * NOTE: Returns a NEW array.
      *
      * @param  {Object|Symbol}   options  Properties to match on each object.
-     *                                    If `secretKey`, we'll automatch every item.
+     *                                    If `SECRETKEY`, we'll automatch every item.
      * @param  {Object|Function} updates  The updates to make to matching objects.
      *                                    If a function, takes the item to update.
      *                                    Should return a new version of the item.
@@ -169,8 +169,8 @@ var Queriable = function () {
       var updatesIsFn = typeof updates === 'function';
       var updateKeys = updatesIsFn ? null : Object.keys(updates);
 
-      return this.get(secretKey).map(function (item) {
-        if (options === secretKey || isMatch(item, options, optionKeys)) {
+      return this.get(SECRETKEY).map(function (item) {
+        if (options === SECRETKEY || isMatch(item, options, optionKeys)) {
           if (updatesIsFn) {
             return updates(item);
           } else {
@@ -198,7 +198,7 @@ var Queriable = function () {
   }, {
     key: 'updateOneWhere',
     value: function updateOneWhere(options, updates) {
-      var found = findMatchFor(options, this.get(secretKey));
+      var found = findMatchFor(options, this.get(SECRETKEY));
       var updatesIsFn = typeof updates === 'function';
       var arrCopy = this.get();
 
@@ -235,7 +235,7 @@ var Queriable = function () {
   }, {
     key: 'updateAll',
     value: function updateAll(updates) {
-      return this.updateAllWhere(secretKey, updates);
+      return this.updateAllWhere(SECRETKEY, updates);
     }
 
     /**
@@ -250,7 +250,7 @@ var Queriable = function () {
   }, {
     key: 'subtract',
     value: function subtract(index) {
-      var arr = this.get(secretKey).slice();
+      var arr = this.get(SECRETKEY).slice();
       arr.splice(index, 1);
       return arr;
     }
@@ -268,7 +268,7 @@ var Queriable = function () {
     key: 'subtractAllWhere',
     value: function subtractAllWhere(options) {
       var keys = Object.keys(options);
-      return this.get(secretKey).filter(function (item) {
+      return this.get(SECRETKEY).filter(function (item) {
         if (isMatch(item, options, keys)) {
           return false;
         }
@@ -288,7 +288,7 @@ var Queriable = function () {
   }, {
     key: 'subtractOneWhere',
     value: function subtractOneWhere(options) {
-      var found = findMatchFor(options, this.get(secretKey));
+      var found = findMatchFor(options, this.get(SECRETKEY));
       var arrCopy = this.get();
       if (found.index > -1) {
         arrCopy.splice(found.index, 1);
@@ -305,7 +305,7 @@ var Queriable = function () {
   }, {
     key: 'count',
     value: function count() {
-      return this.get(secretKey).length;
+      return this.get(SECRETKEY).length;
     }
 
     /**
@@ -327,7 +327,7 @@ var Queriable = function () {
   }, {
     key: 'first',
     value: function first() {
-      return this.get(secretKey)[0];
+      return this.get(SECRETKEY)[0];
     }
 
     /**
@@ -337,7 +337,7 @@ var Queriable = function () {
   }, {
     key: 'rest',
     value: function rest() {
-      var arr = this.get(secretKey);
+      var arr = this.get(SECRETKEY);
       return arr.slice(1);
     }
 
@@ -348,7 +348,7 @@ var Queriable = function () {
   }, {
     key: 'last',
     value: function last() {
-      var arr = this.get(secretKey);
+      var arr = this.get(SECRETKEY);
       return arr[arr.length - 1];
     }
 
@@ -359,7 +359,7 @@ var Queriable = function () {
   }, {
     key: 'lead',
     value: function lead() {
-      var arr = this.get(secretKey);
+      var arr = this.get(SECRETKEY);
       return arr.slice(0, arr.length - 1);
     }
 
@@ -370,7 +370,7 @@ var Queriable = function () {
   }, {
     key: 'random',
     value: function random() {
-      var arr = this.get(secretKey);
+      var arr = this.get(SECRETKEY);
       return arr[Math.floor(Math.random() * arr.length)];
     }
 
@@ -386,7 +386,7 @@ var Queriable = function () {
   }, {
     key: 'prepend',
     value: function prepend(item) {
-      var arr = this.get(secretKey).slice();
+      var arr = this.get(SECRETKEY).slice();
       arr.unshift(item);
       return arr;
     }
@@ -403,7 +403,7 @@ var Queriable = function () {
   }, {
     key: 'append',
     value: function append(item) {
-      var arr = this.get(secretKey).slice();
+      var arr = this.get(SECRETKEY).slice();
       arr.push(item);
       return arr;
     }
@@ -421,6 +421,6 @@ var Queriable = function () {
  */
 
 
-function queriable(array) {
+function collect(array) {
   return new Queriable(array);
 }

@@ -30,7 +30,6 @@
 - [x] write tests
 - [x] change infuseValues to infuseState
 - [x] allow multiple apps on one page
-- [ ] Why is react-pathway calling render on its child twice??
 - [ ] update live reloader with something that works with node 7
 - [x] queriable.countWhere
 - [x] queriable.updateWhere
@@ -40,3 +39,14 @@
 - [x] is there a nicer way to update state than Object.assign?
 - [x] queriable.updateOneWhere
 - [x] queriable.subtractOneWhere
+
+v0.0.8
+
+- [x] rename queriable to collect
+- [x] better ref handling via `capture` prop
+- [x] make sure keyPrefix works for autopersistConfig
+- [x] internalize react-pathway
+  - [x] hook it into state
+  - [ ] add native hash path handling
+  - [ ] maybe add history stuff???
+  - [ ] more testing
