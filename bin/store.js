@@ -51,7 +51,7 @@ function devToolsCompose(disableDevTools) {
     args[_key - 1] = arguments[_key];
   }
 
-  if (!disableDevTools && window.__REDUX_DEVTOOLS_EXTENSION__) {
+  if (!disableDevTools && typeof window !== 'undefined' && window.__REDUX_DEVTOOLS_EXTENSION__) {
     args.push(window.__REDUX_DEVTOOLS_EXTENSION__());
   }
   return _redux.compose.apply(null, args);

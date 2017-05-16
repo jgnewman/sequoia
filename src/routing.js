@@ -20,7 +20,8 @@ const STATEKEY = Symbol();
  * hash change.
  */
 let currentLocation = createLocation();
-window.addEventListener('hashchange', () => currentLocation = createLocation());
+typeof window !== 'undefined' &&
+  window.addEventListener('hashchange', () => currentLocation = createLocation());
 
 
 /*
@@ -29,7 +30,8 @@ window.addEventListener('hashchange', () => currentLocation = createLocation());
  */
 addStoreHook(store => {
   store.dispatch({ type: internals.HASH_PATH })
-  window.addEventListener('hashchange', () => store.dispatch({ type: internals.HASH_PATH }));
+  typeof window !== 'undefined' &&
+    window.addEventListener('hashchange', () => store.dispatch({ type: internals.HASH_PATH }));
 })
 
 
@@ -238,7 +240,8 @@ function testResolves(test, desired) {
  * @return {Object} Contains query string values.
  */
 function parseSearch() {
-  const search = window.location.search.substring(1);
+  const loc = typeof window !== 'undefined' ? window.location : {search: ''};
+  const search = loc.search.substring(1);
   try {
     return !search ? {}
                    : JSON.parse(
@@ -264,14 +267,15 @@ function parseSearch() {
  * @return {Object} Contains important info about location.
  */
 export function createLocation() {
-  return Object.assign({}, removeProps(window.location, [
+  const loc = typeof window !== 'undefined' ? window.location : {};
+  return Object.assign({}, removeProps(loc, [
     'ancestorOrigins',
     'assign',
     'reload',
     'replace'
   ]), {
     params: parseSearch(),
-    hash: normalizeHash(window.location.hash)
+    hash: normalizeHash(loc.hash || '')
   })
 }
 

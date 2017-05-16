@@ -29,7 +29,7 @@ var STATEKEY = Symbol();
  * hash change.
  */
 var currentLocation = createLocation();
-window.addEventListener('hashchange', function () {
+typeof window !== 'undefined' && window.addEventListener('hashchange', function () {
   return currentLocation = createLocation();
 });
 
@@ -39,7 +39,7 @@ window.addEventListener('hashchange', function () {
  */
 (0, _utils.addStoreHook)(function (store) {
   store.dispatch({ type: _utils.internals.HASH_PATH });
-  window.addEventListener('hashchange', function () {
+  typeof window !== 'undefined' && window.addEventListener('hashchange', function () {
     return store.dispatch({ type: _utils.internals.HASH_PATH });
   });
 });
@@ -236,7 +236,8 @@ function testResolves(test, desired) {
  * @return {Object} Contains query string values.
  */
 function parseSearch() {
-  var search = window.location.search.substring(1);
+  var loc = typeof window !== 'undefined' ? window.location : { search: '' };
+  var search = loc.search.substring(1);
   try {
     return !search ? {} : JSON.parse('{"' + search.replace(/&/g, '","').replace(/=/g, '":"') + '"}', function (key, value) {
       return key === "" ? value : decodeURIComponent(value);
@@ -257,9 +258,10 @@ function parseSearch() {
  * @return {Object} Contains important info about location.
  */
 function createLocation() {
-  return Object.assign({}, (0, _utils.removeProps)(window.location, ['ancestorOrigins', 'assign', 'reload', 'replace']), {
+  var loc = typeof window !== 'undefined' ? window.location : {};
+  return Object.assign({}, (0, _utils.removeProps)(loc, ['ancestorOrigins', 'assign', 'reload', 'replace']), {
     params: parseSearch(),
-    hash: normalizeHash(window.location.hash)
+    hash: normalizeHash(loc.hash || '')
   });
 }
 
