@@ -2,6 +2,12 @@ import { removeProps, createError } from './utils';
 import { vetProps, arrayifyChildren } from './routing';
 import { component } from './component';
 
+const NON_NATIVE_PROPS = [
+  'data',
+  'referencer',
+  'location',
+  '__dataSymbol'
+];
 
 /**
  * A component for redirecting our path.
@@ -47,9 +53,16 @@ export const When = component(() => {
        * If we have actual children. Render out the child.
        */
       if (vetted.hasChildren) {
+        const childIsNativeDom = typeof props.children.type === 'string' && /^[a-z]/.test(props.children.type);
+        let propsToRemove = ['component', 'preVet'].concat(vetted.exclusives);
+
+        if (childIsNativeDom) {
+          propsToRemove = propsToRemove.concat(NON_NATIVE_PROPS);
+        }
+
         return React.cloneElement(
           props.children,
-          removeProps(props, ['component', 'preVet'].concat(vetted.exclusives)),
+          removeProps(props, propsToRemove),
           props.children.props.children
         )
 

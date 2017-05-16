@@ -138,37 +138,40 @@ import promiseWare from 'redux-promise'
 // render(<App2 />, { target: '#app2' })
 
 
-const Hello = component(tools => props => {
-  return <div>Hello, world!</div>
-})
-const Goodbye = component(tools => props => <div>Goodbye, cruel world!</div>)
-const Outer = component(tools => props => {
-  return (
-    <Switch>
-      <When subHash="/foo" component={Hello} />
-      <Otherwise component={Goodbye} />
-    </Switch>
-  )
-})
-render(<Outer />, { target: '#app' })
-
-
-// const Hello = component(() => {
-//   return ({ capture }) => {
-//     const ref = capture()
-//     return (
-//       <div>
-//         <div className={uuid()} ref={ref('myDiv')}>Hello</div>
-//         <div onClick={() => console.log(ref.myDiv())}>Click Me</div>
-//       </div>
-//     )
-//   }
+// const Hello = component(tools => props => {
+//   return <div>Hello, world!</div>
 // })
-//
-// render(
-//   <div>
-//     <Hello />
-//     <Hello />
-//   </div>, {
-//     target: '#app2'
-//   })
+// const Goodbye = component(tools => props => <div>Goodbye, cruel world!</div>)
+// const Outer = component(tools => props => {
+//   return (
+//     <Switch>
+//       <When subHash="/foo" component={Hello} />
+//       <Otherwise component={Goodbye} />
+//     </Switch>
+//   )
+// })
+// render(<Outer />, { target: '#app' })
+
+// render(<When isTrue={true}><div>Hello</div></When>, { target: '#app' })
+
+const Hello = component(() => {
+  return ({ referencer }) => {
+    const ref = referencer()
+    return (
+      <div>
+        <div className={uuid()} ref={ref.capture('myDiv')}>Hello</div>
+        <div onClick={() => ref.getAsync('myDiv', 300, myDiv => console.log(myDiv))}>Click Me</div>
+      </div>
+    )
+  }
+})
+
+render(
+  <div>
+    <Hello />
+    <Hello />
+  </div>,
+  {
+    target: '#app2'
+  }
+)

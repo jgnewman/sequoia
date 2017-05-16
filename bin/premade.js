@@ -11,6 +11,8 @@ var _routing = require('./routing');
 
 var _component = require('./component');
 
+var NON_NATIVE_PROPS = ['data', 'referencer', 'location', '__dataSymbol'];
+
 /**
  * A component for redirecting our path.
  */
@@ -54,7 +56,14 @@ var When = exports.When = (0, _component.component)(function () {
        * If we have actual children. Render out the child.
        */
       if (vetted.hasChildren) {
-        return React.cloneElement(props.children, (0, _utils.removeProps)(props, ['component', 'preVet'].concat(vetted.exclusives)), props.children.props.children);
+        var childIsNativeDom = typeof props.children.type === 'string' && /^[a-z]/.test(props.children.type);
+        var propsToRemove = ['component', 'preVet'].concat(vetted.exclusives);
+
+        if (childIsNativeDom) {
+          propsToRemove = propsToRemove.concat(NON_NATIVE_PROPS);
+        }
+
+        return React.cloneElement(props.children, (0, _utils.removeProps)(props, propsToRemove), props.children.props.children);
 
         /*
          * Othwerwise, render an instance of the component named in the

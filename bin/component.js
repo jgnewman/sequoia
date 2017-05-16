@@ -4,6 +4,8 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 
 exports.component = component;
@@ -40,6 +42,8 @@ var _store = require('./store');
 var _utils = require('./utils');
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 /*
  * First things first: You should never have to import react proper.
@@ -142,6 +146,82 @@ function generateComponentTools(cache) {
 }
 
 /**
+ * @class
+ *
+ * Designed to help with DOM reference capture.
+ */
+
+var Referencer = function () {
+  function Referencer() {
+    _classCallCheck(this, Referencer);
+
+    this.__refs = {};
+  }
+
+  /*
+   * Should be called on an element's ref attribute like
+   * `ref={capturer.capture('foo')}`.
+   * You can now reference that real DOM element
+   */
+
+
+  _createClass(Referencer, [{
+    key: 'capture',
+    value: function capture(name) {
+      var _this = this;
+
+      return function (elem) {
+        return elem && (_this.__refs[name] = elem);
+      };
+    }
+
+    /*
+     * Return the current DOM element reference immediately.
+     */
+
+  }, {
+    key: 'get',
+    value: function get(name) {
+      return this.__refs[name];
+    }
+
+    /*
+     * Return the DOM reference on the next run loop.
+     * Helps when you want to call things like focus or
+     * scroll on an element.
+     *
+     * `after` is optional. If included, waits that amount
+     * of time before returning the reference.
+     */
+
+  }, {
+    key: 'getAsync',
+    value: function getAsync(name, after, cb) {
+      var _this2 = this;
+
+      if (typeof after === 'function') {
+        cb = after;
+        after = 0;
+      }
+      setTimeout(function () {
+        cb(_this2.__refs[name]);
+      }, after);
+    }
+  }]);
+
+  return Referencer;
+}();
+
+/*
+ * Functionize our Referencer class.
+ */
+
+
+function referencer() {
+  return new Referencer();
+}
+
+/**
  * Takes a function and returns a sweet-azz component.
  *
  *   component(({ infuse, ensure }) => {
@@ -164,23 +244,9 @@ function component(componentFunction) {
    */
   var setup = {};
   var tools = generateComponentTools(setup);
+  var dataAPI = new _data.DataAPI(_store.getState, _store.dispatchToState, getAppId);
   var getAppId = function getAppId() {
     return appId;
-  };
-  var dataAPI = new _data.DataAPI(_store.getState, _store.dispatchToState, getAppId);
-
-  /*
-   * Create a reference capturer.
-   */
-  var capture = function capture() {
-    var capturer = function capturer(name) {
-      return function (elem) {
-        return elem && (capturer[name] = function () {
-          return elem;
-        });
-      };
-    };
-    return capturer;
   };
 
   /*
@@ -203,7 +269,7 @@ function component(componentFunction) {
    */
   tools.infuseModules({
     data: dataAPI,
-    capture: capture
+    referencer: referencer
   });
 
   /*

@@ -112,6 +112,59 @@ function generateComponentTools(cache) {
 }
 
 /**
+ * @class
+ *
+ * Designed to help with DOM reference capture.
+ */
+class Referencer {
+
+  constructor() {
+    this.__refs = {};
+  }
+
+  /*
+   * Should be called on an element's ref attribute like
+   * `ref={capturer.capture('foo')}`.
+   * You can now reference that real DOM element
+   */
+  capture(name) {
+    return elem => elem && (this.__refs[name] = elem)
+  }
+
+  /*
+   * Return the current DOM element reference immediately.
+   */
+  get(name) {
+    return this.__refs[name];
+  }
+
+  /*
+   * Return the DOM reference on the next run loop.
+   * Helps when you want to call things like focus or
+   * scroll on an element.
+   *
+   * `after` is optional. If included, waits that amount
+   * of time before returning the reference.
+   */
+  getAsync(name, after, cb) {
+    if (typeof after === 'function') {
+      cb = after;
+      after = 0;
+    }
+    setTimeout(() => {
+      cb(this.__refs[name])
+    }, after)
+  }
+}
+
+/*
+ * Functionize our Referencer class.
+ */
+function referencer() {
+  return new Referencer();
+}
+
+/**
  * Takes a function and returns a sweet-azz component.
  *
  *   component(({ infuse, ensure }) => {
@@ -134,18 +187,8 @@ export function component(componentFunction) {
    */
   const setup    = {};
   const tools    = generateComponentTools(setup);
-  const getAppId = () => appId;
   const dataAPI  = new DataAPI(getState, dispatchToState, getAppId)
-
-  /*
-   * Create a reference capturer.
-   */
-  const capture = () => {
-    const capturer = name => {
-      return elem => elem && (capturer[name] = () => elem)
-    }
-    return capturer;
-  }
+  const getAppId = () => appId;
 
   /*
    * Call the componentFunction with its controller functions.
@@ -172,7 +215,7 @@ export function component(componentFunction) {
    */
   tools.infuseModules({
     data: dataAPI,
-    capture: capture
+    referencer: referencer
   });
 
   /*

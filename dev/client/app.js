@@ -8,6 +8,16 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
+var _createClass = function () {
+  function defineProperties(target, props) {
+    for (var i = 0; i < props.length; i++) {
+      var descriptor = props[i];descriptor.enumerable = descriptor.enumerable || false;descriptor.configurable = true;if ("value" in descriptor) descriptor.writable = true;Object.defineProperty(target, descriptor.key, descriptor);
+    }
+  }return function (Constructor, protoProps, staticProps) {
+    if (protoProps) defineProperties(Constructor.prototype, protoProps);if (staticProps) defineProperties(Constructor, staticProps);return Constructor;
+  };
+}();
+
 var _typeof = typeof Symbol === "function" && _typeof2(Symbol.iterator) === "symbol" ? function (obj) {
   return typeof obj === "undefined" ? "undefined" : _typeof2(obj);
 } : function (obj) {
@@ -49,6 +59,12 @@ var _utils = require('./utils');
 
 function _interopRequireDefault(obj) {
   return obj && obj.__esModule ? obj : { default: obj };
+}
+
+function _classCallCheck(instance, Constructor) {
+  if (!(instance instanceof Constructor)) {
+    throw new TypeError("Cannot call a class as a function");
+  }
 }
 
 /*
@@ -152,6 +168,80 @@ function generateComponentTools(cache) {
 }
 
 /**
+ * @class
+ *
+ * Designed to help with DOM reference capture.
+ */
+
+var Referencer = function () {
+  function Referencer() {
+    _classCallCheck(this, Referencer);
+
+    this.__refs = {};
+  }
+
+  /*
+   * Should be called on an element's ref attribute like
+   * `ref={capturer.capture('foo')}`.
+   * You can now reference that real DOM element
+   */
+
+  _createClass(Referencer, [{
+    key: 'capture',
+    value: function capture(name) {
+      var _this = this;
+
+      return function (elem) {
+        return elem && (_this.__refs[name] = elem);
+      };
+    }
+
+    /*
+     * Return the current DOM element reference immediately.
+     */
+
+  }, {
+    key: 'get',
+    value: function get(name) {
+      return this.__refs[name];
+    }
+
+    /*
+     * Return the DOM reference on the next run loop.
+     * Helps when you want to call things like focus or
+     * scroll on an element.
+     *
+     * `after` is optional. If included, waits that amount
+     * of time before returning the reference.
+     */
+
+  }, {
+    key: 'getAsync',
+    value: function getAsync(name, after, cb) {
+      var _this2 = this;
+
+      if (typeof after === 'function') {
+        cb = after;
+        after = 0;
+      }
+      setTimeout(function () {
+        cb(_this2.__refs[name]);
+      }, after);
+    }
+  }]);
+
+  return Referencer;
+}();
+
+/*
+ * Functionize our Referencer class.
+ */
+
+function referencer() {
+  return new Referencer();
+}
+
+/**
  * Takes a function and returns a sweet-azz component.
  *
  *   component(({ infuse, ensure }) => {
@@ -174,23 +264,9 @@ function component(componentFunction) {
    */
   var setup = {};
   var tools = generateComponentTools(setup);
+  var dataAPI = new _data.DataAPI(_store.getState, _store.dispatchToState, getAppId);
   var getAppId = function getAppId() {
     return appId;
-  };
-  var dataAPI = new _data.DataAPI(_store.getState, _store.dispatchToState, getAppId);
-
-  /*
-   * Create a reference capturer.
-   */
-  var capture = function capture() {
-    var capturer = function capturer(name) {
-      return function (elem) {
-        return elem && (capturer[name] = function () {
-          return elem;
-        });
-      };
-    };
-    return capturer;
   };
 
   /*
@@ -213,7 +289,7 @@ function component(componentFunction) {
    */
   tools.infuseModules({
     data: dataAPI,
-    capture: capture
+    referencer: referencer
   });
 
   /*
@@ -984,6 +1060,8 @@ var _routing = require('./routing');
 
 var _component = require('./component');
 
+var NON_NATIVE_PROPS = ['data', 'referencer', 'location', '__dataSymbol'];
+
 /**
  * A component for redirecting our path.
  */
@@ -1027,7 +1105,14 @@ var When = exports.When = (0, _component.component)(function () {
        * If we have actual children. Render out the child.
        */
       if (vetted.hasChildren) {
-        return React.cloneElement(props.children, (0, _utils.removeProps)(props, ['component', 'preVet'].concat(vetted.exclusives)), props.children.props.children);
+        var childIsNativeDom = typeof props.children.type === 'string' && /^[a-z]/.test(props.children.type);
+        var propsToRemove = ['component', 'preVet'].concat(vetted.exclusives);
+
+        if (childIsNativeDom) {
+          propsToRemove = propsToRemove.concat(NON_NATIVE_PROPS);
+        }
+
+        return React.cloneElement(props.children, (0, _utils.removeProps)(props, propsToRemove), props.children.props.children);
 
         /*
          * Othwerwise, render an instance of the component named in the
@@ -1561,7 +1646,7 @@ var STATEKEY = Symbol();
  * hash change.
  */
 var currentLocation = createLocation();
-window.addEventListener('hashchange', function () {
+typeof window !== 'undefined' && window.addEventListener('hashchange', function () {
   return currentLocation = createLocation();
 });
 
@@ -1571,7 +1656,7 @@ window.addEventListener('hashchange', function () {
  */
 (0, _utils.addStoreHook)(function (store) {
   store.dispatch({ type: _utils.internals.HASH_PATH });
-  window.addEventListener('hashchange', function () {
+  typeof window !== 'undefined' && window.addEventListener('hashchange', function () {
     return store.dispatch({ type: _utils.internals.HASH_PATH });
   });
 });
@@ -1768,7 +1853,8 @@ function testResolves(test, desired) {
  * @return {Object} Contains query string values.
  */
 function parseSearch() {
-  var search = window.location.search.substring(1);
+  var loc = typeof window !== 'undefined' ? window.location : { search: '' };
+  var search = loc.search.substring(1);
   try {
     return !search ? {} : JSON.parse('{"' + search.replace(/&/g, '","').replace(/=/g, '":"') + '"}', function (key, value) {
       return key === "" ? value : decodeURIComponent(value);
@@ -1789,9 +1875,10 @@ function parseSearch() {
  * @return {Object} Contains important info about location.
  */
 function createLocation() {
-  return Object.assign({}, (0, _utils.removeProps)(window.location, ['ancestorOrigins', 'assign', 'reload', 'replace']), {
+  var loc = typeof window !== 'undefined' ? window.location : {};
+  return Object.assign({}, (0, _utils.removeProps)(loc, ['ancestorOrigins', 'assign', 'reload', 'replace']), {
     params: parseSearch(),
-    hash: normalizeHash(window.location.hash)
+    hash: normalizeHash(loc.hash || '')
   });
 }
 
@@ -1971,7 +2058,7 @@ function devToolsCompose(disableDevTools) {
     args[_key - 1] = arguments[_key];
   }
 
-  if (!disableDevTools && window.__REDUX_DEVTOOLS_EXTENSION__) {
+  if (!disableDevTools && typeof window !== 'undefined' && window.__REDUX_DEVTOOLS_EXTENSION__) {
     args.push(window.__REDUX_DEVTOOLS_EXTENSION__());
   }
   return _redux.compose.apply(null, args);
@@ -2133,18 +2220,10 @@ var symbol2 = Symbol();
 
 var storeHooks = [];
 
+/*
+ * Allow access to global stores
+ */
 var globalStores = exports.globalStores = {};
-
-function registerStore(key, store) {
-  globalStores[key] = store;
-  storeHooks.forEach(function (hook) {
-    return hook(store);
-  });
-}
-
-function addStoreHook(hook) {
-  storeHooks.push(hook);
-}
 
 /*
  * Internal constants.
@@ -2159,6 +2238,34 @@ var internals = exports.internals = {
   ROUTING: '@@SQ_ROUTING',
   HASH_PATH: '@@SQ_HASH_PATH'
 };
+
+/**
+ * Store a reference to a redux store.
+ * Whenever a store is registered, run
+ * it through all of our store hooks.
+ *
+ * @param {String} key    An identifier for the store.
+ * @param {Store}  store  A redux store.
+ *
+ * @return {undefined}
+ */
+function registerStore(key, store) {
+  globalStores[key] = store;
+  storeHooks.forEach(function (hook) {
+    return hook(store);
+  });
+}
+
+/**
+ * Store hooks will run any time a new store is
+ * registered and each one will run with the store
+ * as an argument.
+ *
+ * @param {Function} hook  The hook.
+ */
+function addStoreHook(hook) {
+  storeHooks.push(hook);
+}
 
 /**
  * Creates a nice error object. Not automatically thrown.
@@ -2367,55 +2474,56 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 // render(<App2 />, { target: '#app2' })
 
 
-var Hello = (0, _index.component)(function (tools) {
-  return function (props) {
-    return React.createElement(
-      'div',
-      null,
-      'Hello, world!'
-    );
-  };
-});
-var Goodbye = (0, _index.component)(function (tools) {
-  return function (props) {
-    return React.createElement(
-      'div',
-      null,
-      'Goodbye, cruel world!'
-    );
-  };
-});
-var Outer = (0, _index.component)(function (tools) {
-  return function (props) {
-    return React.createElement(
-      _index.Switch,
-      null,
-      React.createElement(_index.When, { subHash: '/foo', component: Hello }),
-      React.createElement(_index.Otherwise, { component: Goodbye })
-    );
-  };
-});
-(0, _index.render)(React.createElement(Outer, null), { target: '#app' });
-
-// const Hello = component(() => {
-//   return ({ capture }) => {
-//     const ref = capture()
-//     return (
-//       <div>
-//         <div className={uuid()} ref={ref('myDiv')}>Hello</div>
-//         <div onClick={() => console.log(ref.myDiv())}>Click Me</div>
-//       </div>
-//     )
-//   }
+// const Hello = component(tools => props => {
+//   return <div>Hello, world!</div>
 // })
-//
-// render(
-//   <div>
-//     <Hello />
-//     <Hello />
-//   </div>, {
-//     target: '#app2'
-//   })
+// const Goodbye = component(tools => props => <div>Goodbye, cruel world!</div>)
+// const Outer = component(tools => props => {
+//   return (
+//     <Switch>
+//       <When subHash="/foo" component={Hello} />
+//       <Otherwise component={Goodbye} />
+//     </Switch>
+//   )
+// })
+// render(<Outer />, { target: '#app' })
+
+// render(<When isTrue={true}><div>Hello</div></When>, { target: '#app' })
+
+var Hello = (0, _index.component)(function () {
+  return function (_ref) {
+    var referencer = _ref.referencer;
+
+    var ref = referencer();
+    return React.createElement(
+      'div',
+      null,
+      React.createElement(
+        'div',
+        { className: (0, _index.uuid)(), ref: ref.capture('myDiv') },
+        'Hello'
+      ),
+      React.createElement(
+        'div',
+        { onClick: function onClick() {
+            return ref.getAsync('myDiv', 300, function (myDiv) {
+              return console.log(myDiv);
+            });
+          } },
+        'Click Me'
+      )
+    );
+  };
+});
+
+(0, _index.render)(React.createElement(
+  'div',
+  null,
+  React.createElement(Hello, null),
+  React.createElement(Hello, null)
+), {
+  target: '#app2'
+});
 
 },{"../../../bin/index":4,"redux-promise":268}],11:[function(require,module,exports){
 module.exports = require('./lib/axios');

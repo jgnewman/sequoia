@@ -40,7 +40,7 @@
 - [x] queriable.updateOneWhere
 - [x] queriable.subtractOneWhere
 
-v0.0.8
+v0.0.8/v0.0.9
 
 - [x] rename queriable to collect
 - [x] better ref handling via `capture` prop
@@ -48,3 +48,12 @@ v0.0.8
 - [x] internalize react-pathway
   - [x] hook it into state
   - [x] add native hash path handling
+
+v0.0.10
+
+- [x] `capture` becomes `referencer`
+  - [x] calling referencer creates a referencer instance
+  - [x] referencer.capture creates a reference
+  - [x] referencer.get retrieves a reference immediately
+  - [x] referencer.getAsync retrieves a reference with a callback after time
+- [x] fix react-unknown-prop error

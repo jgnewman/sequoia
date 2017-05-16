@@ -14,18 +14,10 @@ var symbol2 = Symbol();
 
 var storeHooks = [];
 
+/*
+ * Allow access to global stores
+ */
 var globalStores = exports.globalStores = {};
-
-function registerStore(key, store) {
-  globalStores[key] = store;
-  storeHooks.forEach(function (hook) {
-    return hook(store);
-  });
-}
-
-function addStoreHook(hook) {
-  storeHooks.push(hook);
-}
 
 /*
  * Internal constants.
@@ -40,6 +32,34 @@ var internals = exports.internals = {
   ROUTING: '@@SQ_ROUTING',
   HASH_PATH: '@@SQ_HASH_PATH'
 };
+
+/**
+ * Store a reference to a redux store.
+ * Whenever a store is registered, run
+ * it through all of our store hooks.
+ *
+ * @param {String} key    An identifier for the store.
+ * @param {Store}  store  A redux store.
+ *
+ * @return {undefined}
+ */
+function registerStore(key, store) {
+  globalStores[key] = store;
+  storeHooks.forEach(function (hook) {
+    return hook(store);
+  });
+}
+
+/**
+ * Store hooks will run any time a new store is
+ * registered and each one will run with the store
+ * as an argument.
+ *
+ * @param {Function} hook  The hook.
+ */
+function addStoreHook(hook) {
+  storeHooks.push(hook);
+}
 
 /**
  * Creates a nice error object. Not automatically thrown.
