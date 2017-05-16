@@ -139,14 +139,13 @@ import promiseWare from 'redux-promise'
 
 
 const Hello = component(tools => props => {
-  // console.log(props)
   return <div>Hello, world!</div>
 })
 const Goodbye = component(tools => props => <div>Goodbye, cruel world!</div>)
 const Outer = component(tools => props => {
   return (
     <Switch>
-      <When isTrue={props.location.get().hash === '#foo'} component={Hello} />
+      <When subHash="/foo" component={Hello} />
       <Otherwise component={Goodbye} />
     </Switch>
   )

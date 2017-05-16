@@ -91,23 +91,3 @@ export function removeProps(obj, props) {
   });
   return newObj;
 }
-
-/**
- * Wait until an impure function returns truthily
- * before executing a callback.
- *
- * @param  {Function} resolve  The function we're waiting on.
- * @param  {Function} callback The callback to execute.
- *
- * @return {undefined}
- */
-export function waitUntil(resolve, callback) {
-  const didResolve = resolve();
-  if (didResolve) {
-    return callback(didResolve);
-  } else {
-    setTimeout(() => {
-      waitUntil(resolve, callback);
-    }, 10)
-  }
-}

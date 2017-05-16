@@ -1,23 +1,32 @@
 import React, { Component } from 'react';
 import { REHYDRATE } from 'redux-persist/constants';
-import { addStoreHook, internals, createError, removeProps, waitUntil } from './utils';
+import { addStoreHook, internals, createError, removeProps } from './utils';
 
 const EXCLUSIVE_PROPS = [
   'isTrue',
   'isFalse',
   'path',
-  'subPath'
+  'hash',
+  'subPath',
+  'subHash'
 ];
 
 const AFTSLASH = /\/$/;
 
 const STATEKEY = Symbol();
 
+/*
+ * Create one place to track the current location and update it on
+ * hash change.
+ */
+let currentLocation = createLocation();
+window.addEventListener('hashchange', () => currentLocation = createLocation());
 
-/**************************************************
- * Set up 2 listeners that will apply to all apps.
- **************************************************/
 
+/*
+ * Whenever a new store is registered, we'll pass the current location
+ * into it. And whenver the hash changes, we'll update the location in the state.
+ */
 addStoreHook(store => {
   store.dispatch({ type: internals.HASH_PATH })
   window.addEventListener('hashchange', () => store.dispatch({ type: internals.HASH_PATH }));
@@ -44,6 +53,18 @@ function normalizeHash(hash) {
   } else {
     return '#' + hash.replace(/^\#|^\/\#?/, '')
   }
+}
+
+/**
+ * Makes a hash path look like a normal path.
+ * We expect the incoming hash to be pre-normalized.
+ *
+ * @param  {String} hash A hash path. (I.E. #foo)
+ *
+ * @return {String} Now looks like a normal path. (I.E. /foo)
+ */
+function pathifyHash(hash) {
+  return hash.replace(/^\#\/?/, '/').replace(AFTSLASH, '');
 }
 
 /**
@@ -104,18 +125,18 @@ function assertComponentOrChildren(props) {
  * desired path.
  *
  * @param  {String}  desired  The desired path. I.E. "/foo", "/foo/bar", "/foo/*"
- * @param  {String}  actual   The actual path.
+ * @param  {Boolean} isHash   Whether we're testing hash paths.
  *
  * @return {Boolean} Whether the pathname matches.
  */
-function testPath(desired, actual) {
-  const path    = actual.replace(AFTSLASH, '');
-  const toMatch = desired.replace(AFTSLASH, '');
+function testPath(desired, isHash) {
+  const toMatch = isHash ? pathifyHash(desired) : desired.replace(AFTSLASH, '');
+  const path    = isHash ? pathifyHash(currentLocation.hash) : currentLocation.pathname.replace(AFTSLASH, '');
 
   /*
    * If the paths are identical, match.
    */
-  if (path === toMatch) {
+  if ((isHash && desired === currentLocation.hash) || (!isHash && path === toMatch)) {
     return true;
 
   /*
@@ -139,18 +160,18 @@ function testPath(desired, actual) {
  * the end of the path rather than at the beginning.
  *
  * @param  {String}  desired  The desired subPath. I.E. "/foo", "/foo/bar", "/foo/*"
- * @param  {String}  actual   The actual path.
+ * @param  {Boolean} isHash   Whether we're testing hash paths.
  *
  * @return {Boolean} Whether the pathname matches.
  */
-function testSubPath(desired, actual) {
-  const path    = actual.replace(AFTSLASH, '');
-  const toMatch = desired.replace(AFTSLASH, '');
+function testSubPath(desired, isHash) {
+  const toMatch = isHash ? pathifyHash(desired) : desired.replace(AFTSLASH, '');
+  const path    = isHash ? pathifyHash(currentLocation.hash) : currentLocation.pathname.replace(AFTSLASH, '');
 
   /*
    * If the paths are identical, match.
    */
-  if (path === toMatch) {
+  if ((isHash && desired === currentLocation.hash) || (!isHash && path === toMatch)) {
     return true;
 
   } else {
@@ -188,21 +209,23 @@ function testSubPath(desired, actual) {
  *
  * @param  {String}  test    The name of the property we're using for a test.
  * @param  {Any}     desired Each test prop will deal with a different type of value.
- * @param  {String}  curLoc  Optional, the current location object.
  *
  * @return {Boolean} True if the test resolved.
  */
-function testResolves(test, desired, curLoc) {
+function testResolves(test, desired) {
   switch (test) {
     case 'isFalse'   : return !desired;
     case 'isTrue'    : return !!desired;
-    case 'path'      : return testPath(desired, curLoc.pathname);
-    case 'subPath'   : return testSubPath(desired, curLoc.pathname);
+    case 'path'      : return testPath(desired);
+    case 'hash'      : return testPath(desired, true);
+    case 'subPath'   : return testSubPath(desired);
+    case 'subHash'   : return testSubPath(desired, true);
     default          : throw createError(
                          `
-                           Something's gone horribly wrong. Usually this happens
-                           if you forget to include a necessary prop or spell
-                           its name wrong.
+                           Something's gone horribly wrong with conditional
+                           routing. Usually this happens if you forget to
+                           include a necessary prop on a \`When\` component
+                           or spell the prop's name wrong.
                          `
                        );
   }
@@ -257,33 +280,18 @@ export function createLocation() {
  */
 export function createRouteReducer(initialState) {
   return (state=initialState[internals.ROUTING], action) => {
-    console.log(action.type)
+
     switch (action.type) {
 
       case REHYDRATE:
       case internals.HASH_PATH:
-        return Object.assign({}, state, createLocation());
+        return Object.assign({}, state, currentLocation);
 
       default:
         return state;
 
     }
   }
-}
-
-/*
- * Creates a listener watching hash changes and page loads.
- */
-export class LocationAPI {
-
-  constructor(getState, getAppId) {
-    this.__getState = key => key === STATEKEY ? getState(getAppId()) : null;
-  }
-
-  get() {
-    return this.__getState(STATEKEY)[internals.ROUTING];
-  }
-
 }
 
 /**
@@ -300,7 +308,7 @@ export class LocationAPI {
 export function vetProps(props, forceResolve) {
   const testProp    = assertCleanProps(props);
   const hasChildren = assertComponentOrChildren(props).children;
-  const resolves    = !!forceResolve || testResolves(testProp, props[testProp], window.location);
+  const resolves    = !!forceResolve || testResolves(testProp, props[testProp]);
   return {
     testProp: testProp,
     hasChildren: hasChildren,

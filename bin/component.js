@@ -35,8 +35,6 @@ var _constants = require('./constants');
 
 var _data = require('./data');
 
-var _routing = require('./routing');
-
 var _store = require('./store');
 
 var _utils = require('./utils');
@@ -158,10 +156,8 @@ function generateComponentTools(cache) {
  */
 function component(componentFunction) {
   var dataToggler = (0, _utils.toggleSymbols)();
-  var locationToggler = (0, _utils.toggleSymbols)();
   var appId = void 0;
   var dataCache = void 0;
-  var locationCache = void 0;
 
   /*
    * Create the tools that will get passed into the componentFunction.
@@ -172,7 +168,6 @@ function component(componentFunction) {
     return appId;
   };
   var dataAPI = new _data.DataAPI(_store.getState, _store.dispatchToState, getAppId);
-  var locAPI = new _routing.LocationAPI(_store.getState, getAppId);
 
   /*
    * Create a reference capturer.
@@ -208,19 +203,18 @@ function component(componentFunction) {
    */
   tools.infuseModules({
     data: dataAPI,
-    location: locAPI,
     capture: capture
   });
 
   /*
    * This part is a little bit of magic. Essentially, we need components to re-render
-   * whenever data/location updates so their api functions within render methods will actually
+   * whenever data updates so their api functions within render methods will actually
    * run. However, we don't want to pass the data itself into the props because the
    * whole point is to not give users tools to screw themselves over.
    *
-   * So here we infuse a prop called `__dataSymbol/__locationSymbol` whose value will always be
+   * So here we infuse a prop called `__dataSymbol` whose value will always be
    * one of two Symbol constants, making it useless to the user. Whenever the state updates,
-   * we'll check to see if @@SQ_DATA/@@SQ_ROUTING has been updated. If so, we'll toggle the symbols,
+   * we'll check to see if @@SQ_DATA has been updated. If so, we'll toggle the symbols,
    * thus causing the component to re-render. If not, we'll return the current symbol
    * and the compnent will not necessarily re-render.
    */
@@ -238,14 +232,9 @@ function component(componentFunction) {
     }
 
     /*
-     * Handle location toggles
+     * Pass in the location object.
      */
-    if (locationCache === state[_utils.internals.ROUTING]) {
-      out.__locationSymbol = locationToggler.current();
-    } else {
-      out.__locationSymbol = locationToggler();
-      locationCache = state[_utils.internals.ROUTING];
-    }
+    out.location = state[_utils.internals.ROUTING];
 
     /*
      * Take this opportunity to make sure the data API can

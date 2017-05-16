@@ -43,8 +43,6 @@ var _constants = require('./constants');
 
 var _data = require('./data');
 
-var _routing = require('./routing');
-
 var _store = require('./store');
 
 var _utils = require('./utils');
@@ -168,10 +166,8 @@ function generateComponentTools(cache) {
  */
 function component(componentFunction) {
   var dataToggler = (0, _utils.toggleSymbols)();
-  var locationToggler = (0, _utils.toggleSymbols)();
   var appId = void 0;
   var dataCache = void 0;
-  var locationCache = void 0;
 
   /*
    * Create the tools that will get passed into the componentFunction.
@@ -182,7 +178,6 @@ function component(componentFunction) {
     return appId;
   };
   var dataAPI = new _data.DataAPI(_store.getState, _store.dispatchToState, getAppId);
-  var locAPI = new _routing.LocationAPI(_store.getState, getAppId);
 
   /*
    * Create a reference capturer.
@@ -218,19 +213,18 @@ function component(componentFunction) {
    */
   tools.infuseModules({
     data: dataAPI,
-    location: locAPI,
     capture: capture
   });
 
   /*
    * This part is a little bit of magic. Essentially, we need components to re-render
-   * whenever data/location updates so their api functions within render methods will actually
+   * whenever data updates so their api functions within render methods will actually
    * run. However, we don't want to pass the data itself into the props because the
    * whole point is to not give users tools to screw themselves over.
    *
-   * So here we infuse a prop called `__dataSymbol/__locationSymbol` whose value will always be
+   * So here we infuse a prop called `__dataSymbol` whose value will always be
    * one of two Symbol constants, making it useless to the user. Whenever the state updates,
-   * we'll check to see if @@SQ_DATA/@@SQ_ROUTING has been updated. If so, we'll toggle the symbols,
+   * we'll check to see if @@SQ_DATA has been updated. If so, we'll toggle the symbols,
    * thus causing the component to re-render. If not, we'll return the current symbol
    * and the compnent will not necessarily re-render.
    */
@@ -248,14 +242,9 @@ function component(componentFunction) {
     }
 
     /*
-     * Handle location toggles
+     * Pass in the location object.
      */
-    if (locationCache === state[_utils.internals.ROUTING]) {
-      out.__locationSymbol = locationToggler.current();
-    } else {
-      out.__locationSymbol = locationToggler();
-      locationCache = state[_utils.internals.ROUTING];
-    }
+    out.location = state[_utils.internals.ROUTING];
 
     /*
      * Take this opportunity to make sure the data API can
@@ -316,7 +305,7 @@ function render(app, settings) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./constants":2,"./data":3,"./routing":7,"./store":8,"./utils":9,"prop-types":87,"react":256,"react-dom":89,"react-redux":225,"react-redux-infuser":215,"uuid":280}],2:[function(require,module,exports){
+},{"./constants":2,"./data":3,"./store":8,"./utils":9,"prop-types":87,"react":256,"react-dom":89,"react-redux":225,"react-redux-infuser":215,"uuid":280}],2:[function(require,module,exports){
 'use strict';
 
 var _typeof2 = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
@@ -1544,18 +1533,6 @@ function collect(array) {
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.LocationAPI = undefined;
-
-var _createClass = function () {
-  function defineProperties(target, props) {
-    for (var i = 0; i < props.length; i++) {
-      var descriptor = props[i];descriptor.enumerable = descriptor.enumerable || false;descriptor.configurable = true;if ("value" in descriptor) descriptor.writable = true;Object.defineProperty(target, descriptor.key, descriptor);
-    }
-  }return function (Constructor, protoProps, staticProps) {
-    if (protoProps) defineProperties(Constructor.prototype, protoProps);if (staticProps) defineProperties(Constructor, staticProps);return Constructor;
-  };
-}();
-
 exports.createLocation = createLocation;
 exports.createRouteReducer = createRouteReducer;
 exports.vetProps = vetProps;
@@ -1573,22 +1550,25 @@ function _interopRequireDefault(obj) {
   return obj && obj.__esModule ? obj : { default: obj };
 }
 
-function _classCallCheck(instance, Constructor) {
-  if (!(instance instanceof Constructor)) {
-    throw new TypeError("Cannot call a class as a function");
-  }
-}
-
-var EXCLUSIVE_PROPS = ['isTrue', 'isFalse', 'path', 'subPath'];
+var EXCLUSIVE_PROPS = ['isTrue', 'isFalse', 'path', 'hash', 'subPath', 'subHash'];
 
 var AFTSLASH = /\/$/;
 
 var STATEKEY = Symbol();
 
-/**************************************************
- * Set up 2 listeners that will apply to all apps.
- **************************************************/
+/*
+ * Create one place to track the current location and update it on
+ * hash change.
+ */
+var currentLocation = createLocation();
+window.addEventListener('hashchange', function () {
+  return currentLocation = createLocation();
+});
 
+/*
+ * Whenever a new store is registered, we'll pass the current location
+ * into it. And whenver the hash changes, we'll update the location in the state.
+ */
 (0, _utils.addStoreHook)(function (store) {
   store.dispatch({ type: _utils.internals.HASH_PATH });
   window.addEventListener('hashchange', function () {
@@ -1616,6 +1596,18 @@ function normalizeHash(hash) {
   } else {
     return '#' + hash.replace(/^\#|^\/\#?/, '');
   }
+}
+
+/**
+ * Makes a hash path look like a normal path.
+ * We expect the incoming hash to be pre-normalized.
+ *
+ * @param  {String} hash A hash path. (I.E. #foo)
+ *
+ * @return {String} Now looks like a normal path. (I.E. /foo)
+ */
+function pathifyHash(hash) {
+  return hash.replace(/^\#\/?/, '/').replace(AFTSLASH, '');
 }
 
 /**
@@ -1665,18 +1657,18 @@ function assertComponentOrChildren(props) {
  * desired path.
  *
  * @param  {String}  desired  The desired path. I.E. "/foo", "/foo/bar", "/foo/*"
- * @param  {String}  actual   The actual path.
+ * @param  {Boolean} isHash   Whether we're testing hash paths.
  *
  * @return {Boolean} Whether the pathname matches.
  */
-function testPath(desired, actual) {
-  var path = actual.replace(AFTSLASH, '');
-  var toMatch = desired.replace(AFTSLASH, '');
+function testPath(desired, isHash) {
+  var toMatch = isHash ? pathifyHash(desired) : desired.replace(AFTSLASH, '');
+  var path = isHash ? pathifyHash(currentLocation.hash) : currentLocation.pathname.replace(AFTSLASH, '');
 
   /*
    * If the paths are identical, match.
    */
-  if (path === toMatch) {
+  if (isHash && desired === currentLocation.hash || !isHash && path === toMatch) {
     return true;
 
     /*
@@ -1699,18 +1691,18 @@ function testPath(desired, actual) {
  * the end of the path rather than at the beginning.
  *
  * @param  {String}  desired  The desired subPath. I.E. "/foo", "/foo/bar", "/foo/*"
- * @param  {String}  actual   The actual path.
+ * @param  {Boolean} isHash   Whether we're testing hash paths.
  *
  * @return {Boolean} Whether the pathname matches.
  */
-function testSubPath(desired, actual) {
-  var path = actual.replace(AFTSLASH, '');
-  var toMatch = desired.replace(AFTSLASH, '');
+function testSubPath(desired, isHash) {
+  var toMatch = isHash ? pathifyHash(desired) : desired.replace(AFTSLASH, '');
+  var path = isHash ? pathifyHash(currentLocation.hash) : currentLocation.pathname.replace(AFTSLASH, '');
 
   /*
    * If the paths are identical, match.
    */
-  if (path === toMatch) {
+  if (isHash && desired === currentLocation.hash || !isHash && path === toMatch) {
     return true;
   } else {
 
@@ -1747,22 +1739,25 @@ function testSubPath(desired, actual) {
  *
  * @param  {String}  test    The name of the property we're using for a test.
  * @param  {Any}     desired Each test prop will deal with a different type of value.
- * @param  {String}  curLoc  Optional, the current location object.
  *
  * @return {Boolean} True if the test resolved.
  */
-function testResolves(test, desired, curLoc) {
+function testResolves(test, desired) {
   switch (test) {
     case 'isFalse':
       return !desired;
     case 'isTrue':
       return !!desired;
     case 'path':
-      return testPath(desired, curLoc.pathname);
+      return testPath(desired);
+    case 'hash':
+      return testPath(desired, true);
     case 'subPath':
-      return testSubPath(desired, curLoc.pathname);
+      return testSubPath(desired);
+    case 'subHash':
+      return testSubPath(desired, true);
     default:
-      throw (0, _utils.createError)('\n                           Something\'s gone horribly wrong. Usually this happens\n                           if you forget to include a necessary prop or spell\n                           its name wrong.\n                         ');
+      throw (0, _utils.createError)('\n                           Something\'s gone horribly wrong with conditional\n                           routing. Usually this happens if you forget to\n                           include a necessary prop on a `When` component\n                           or spell the prop\'s name wrong.\n                         ');
   }
   return false;
 }
@@ -1808,12 +1803,11 @@ function createRouteReducer(initialState) {
     var state = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : initialState[_utils.internals.ROUTING];
     var action = arguments[1];
 
-    console.log(action.type);
     switch (action.type) {
 
       case _constants.REHYDRATE:
       case _utils.internals.HASH_PATH:
-        return Object.assign({}, state, createLocation());
+        return Object.assign({}, state, currentLocation);
 
       default:
         return state;
@@ -1821,29 +1815,6 @@ function createRouteReducer(initialState) {
     }
   };
 }
-
-/*
- * Creates a listener watching hash changes and page loads.
- */
-
-var LocationAPI = exports.LocationAPI = function () {
-  function LocationAPI(getState, getAppId) {
-    _classCallCheck(this, LocationAPI);
-
-    this.__getState = function (key) {
-      return key === STATEKEY ? getState(getAppId()) : null;
-    };
-  }
-
-  _createClass(LocationAPI, [{
-    key: 'get',
-    value: function get() {
-      return this.__getState(STATEKEY)[_utils.internals.ROUTING];
-    }
-  }]);
-
-  return LocationAPI;
-}();
 
 /**
  * Fully vets a collection of props to determine whether everything
@@ -1856,11 +1827,10 @@ var LocationAPI = exports.LocationAPI = function () {
  *                   whether or not the component has children,
  *                   and whether or not the test resolved.
  */
-
 function vetProps(props, forceResolve) {
   var testProp = assertCleanProps(props);
   var hasChildren = assertComponentOrChildren(props).children;
-  var resolves = !!forceResolve || testResolves(testProp, props[testProp], window.location);
+  var resolves = !!forceResolve || testResolves(testProp, props[testProp]);
   return {
     testProp: testProp,
     hasChildren: hasChildren,
@@ -2158,7 +2128,6 @@ exports.createError = createError;
 exports.assertNesting = assertNesting;
 exports.toggleSymbols = toggleSymbols;
 exports.removeProps = removeProps;
-exports.waitUntil = waitUntil;
 var symbol1 = Symbol();
 var symbol2 = Symbol();
 
@@ -2260,26 +2229,6 @@ function removeProps(obj, props) {
     }
   });
   return newObj;
-}
-
-/**
- * Wait until an impure function returns truthily
- * before executing a callback.
- *
- * @param  {Function} resolve  The function we're waiting on.
- * @param  {Function} callback The callback to execute.
- *
- * @return {undefined}
- */
-function waitUntil(resolve, callback) {
-  var didResolve = resolve();
-  if (didResolve) {
-    return callback(didResolve);
-  } else {
-    setTimeout(function () {
-      waitUntil(resolve, callback);
-    }, 10);
-  }
 }
 
 },{}],10:[function(require,module,exports){
@@ -2420,7 +2369,6 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 var Hello = (0, _index.component)(function (tools) {
   return function (props) {
-    // console.log(props)
     return React.createElement(
       'div',
       null,
@@ -2442,7 +2390,7 @@ var Outer = (0, _index.component)(function (tools) {
     return React.createElement(
       _index.Switch,
       null,
-      React.createElement(_index.When, { isTrue: props.location.get().hash === '#foo', component: Hello }),
+      React.createElement(_index.When, { subHash: '/foo', component: Hello }),
       React.createElement(_index.Otherwise, { component: Goodbye })
     );
   };

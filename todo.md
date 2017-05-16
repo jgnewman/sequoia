@@ -47,6 +47,4 @@ v0.0.8
 - [x] make sure keyPrefix works for autopersistConfig
 - [x] internalize react-pathway
   - [x] hook it into state
-  - [ ] add native hash path handling
-  - [ ] maybe add history stuff???
-  - [ ] more testing
+  - [x] add native hash path handling

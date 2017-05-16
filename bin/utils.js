@@ -9,7 +9,6 @@ exports.createError = createError;
 exports.assertNesting = assertNesting;
 exports.toggleSymbols = toggleSymbols;
 exports.removeProps = removeProps;
-exports.waitUntil = waitUntil;
 var symbol1 = Symbol();
 var symbol2 = Symbol();
 
@@ -111,24 +110,4 @@ function removeProps(obj, props) {
     }
   });
   return newObj;
-}
-
-/**
- * Wait until an impure function returns truthily
- * before executing a callback.
- *
- * @param  {Function} resolve  The function we're waiting on.
- * @param  {Function} callback The callback to execute.
- *
- * @return {undefined}
- */
-function waitUntil(resolve, callback) {
-  var didResolve = resolve();
-  if (didResolve) {
-    return callback(didResolve);
-  } else {
-    setTimeout(function () {
-      waitUntil(resolve, callback);
-    }, 10);
-  }
 }

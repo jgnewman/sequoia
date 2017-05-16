@@ -6,7 +6,6 @@ import uuid from 'uuid';
 import { Provider } from 'react-redux';
 import { createConstantsFromArray } from './constants';
 import { createRestfulAction, DataAPI } from './data';
-import { LocationAPI } from './routing';
 import { getState, dispatchToState, initializeStore, reduce } from './store';
 import { internals, createError, assertNesting, toggleSymbols } from './utils';
 
@@ -126,11 +125,9 @@ function generateComponentTools(cache) {
  * @return {Component} A react component.
  */
 export function component(componentFunction) {
-  const dataToggler     = toggleSymbols();
-  const locationToggler = toggleSymbols();
+  const dataToggler = toggleSymbols();
   let appId;
   let dataCache;
-  let locationCache;
 
   /*
    * Create the tools that will get passed into the componentFunction.
@@ -139,7 +136,6 @@ export function component(componentFunction) {
   const tools    = generateComponentTools(setup);
   const getAppId = () => appId;
   const dataAPI  = new DataAPI(getState, dispatchToState, getAppId)
-  const locAPI   = new LocationAPI(getState, getAppId)
 
   /*
    * Create a reference capturer.
@@ -176,19 +172,18 @@ export function component(componentFunction) {
    */
   tools.infuseModules({
     data: dataAPI,
-    location: locAPI,
     capture: capture
   });
 
   /*
    * This part is a little bit of magic. Essentially, we need components to re-render
-   * whenever data/location updates so their api functions within render methods will actually
+   * whenever data updates so their api functions within render methods will actually
    * run. However, we don't want to pass the data itself into the props because the
    * whole point is to not give users tools to screw themselves over.
    *
-   * So here we infuse a prop called `__dataSymbol/__locationSymbol` whose value will always be
+   * So here we infuse a prop called `__dataSymbol` whose value will always be
    * one of two Symbol constants, making it useless to the user. Whenever the state updates,
-   * we'll check to see if @@SQ_DATA/@@SQ_ROUTING has been updated. If so, we'll toggle the symbols,
+   * we'll check to see if @@SQ_DATA has been updated. If so, we'll toggle the symbols,
    * thus causing the component to re-render. If not, we'll return the current symbol
    * and the compnent will not necessarily re-render.
    */
@@ -206,14 +201,9 @@ export function component(componentFunction) {
     }
 
     /*
-     * Handle location toggles
+     * Pass in the location object.
      */
-    if (locationCache === state[internals.ROUTING]) {
-      out.__locationSymbol = locationToggler.current();
-    } else {
-      out.__locationSymbol = locationToggler();
-      locationCache = state[internals.ROUTING];
-    }
+    out.location = state[internals.ROUTING];
 
     /*
      * Take this opportunity to make sure the data API can
