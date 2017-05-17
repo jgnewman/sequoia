@@ -16,7 +16,7 @@ import promiseWare from 'redux-promise'
 // /*
 //  * Create an app container component.
 //  */
-// const AppContainer = component(({ infuse, ensure, infuseActions }) => {
+// const AppContainer = component(({ infuse, ensure, infuseActions, data }) => {
 //
 //   /*
 //    * Name all the props to infuse into the component.
@@ -67,7 +67,7 @@ import promiseWare from 'redux-promise'
 //    * Return the rendered, dumb component.
 //    */
 //   return props => {
-//     const { myActions, req, data } = props;
+//     const { myActions, req } = props;
 //
 //     // setTimeout(() => {
 //     //   req()
@@ -152,26 +152,28 @@ import promiseWare from 'redux-promise'
 // })
 // render(<Outer />, { target: '#app' })
 
-// render(<When isTrue={true}><div>Hello</div></When>, { target: '#app' })
 
-const Hello = component(() => {
-  return ({ referencer }) => {
-    const ref = referencer()
-    return (
-      <div>
-        <div className={uuid()} ref={ref.capture('myDiv')}>Hello</div>
-        <div onClick={() => ref.getAsync('myDiv', 300, myDiv => console.log(myDiv))}>Click Me</div>
-      </div>
-    )
-  }
-})
+render(<When ok={true}><div>Hello</div></When>, { target: '#app' })
 
-render(
-  <div>
-    <Hello />
-    <Hello />
-  </div>,
-  {
-    target: '#app2'
-  }
-)
+
+// const Hello = component(({ referencer }) => {
+//   return () => {
+//     const ref = referencer()
+//     return (
+//       <div>
+//         <div className={uuid()} ref={ref.capture('myDiv')}>Hello</div>
+//         <div onClick={() => ref.getAsync('myDiv', 300, myDiv => console.log(myDiv))}>Click Me</div>
+//       </div>
+//     )
+//   }
+// })
+//
+// render(
+//   <div>
+//     <Hello />
+//     <Hello />
+//   </div>,
+//   {
+//     target: '#app2'
+//   }
+// )

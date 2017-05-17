@@ -18,7 +18,7 @@ var _utils = require('./utils');
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-var EXCLUSIVE_PROPS = ['isTrue', 'isFalse', 'path', 'hash', 'subPath', 'subHash'];
+var EXCLUSIVE_PROPS = ['ok', 'notOk', 'path', 'hash', 'subPath', 'subHash', 'populated', 'empty'];
 
 var AFTSLASH = /\/$/;
 
@@ -29,7 +29,7 @@ var STATEKEY = Symbol();
  * hash change.
  */
 var currentLocation = createLocation();
-typeof window !== 'undefined' && window.addEventListener('hashchange', function () {
+_utils.win.addEventListener('hashchange', function () {
   return currentLocation = createLocation();
 });
 
@@ -39,7 +39,7 @@ typeof window !== 'undefined' && window.addEventListener('hashchange', function 
  */
 (0, _utils.addStoreHook)(function (store) {
   store.dispatch({ type: _utils.internals.HASH_PATH });
-  typeof window !== 'undefined' && window.addEventListener('hashchange', function () {
+  _utils.win.addEventListener('hashchange', function () {
     return store.dispatch({ type: _utils.internals.HASH_PATH });
   });
 });
@@ -203,6 +203,18 @@ function testSubPath(desired, isHash) {
 }
 
 /**
+ * Determine whether an object/array is populated.
+ *
+ * @param  {Object|Array} obj Might be populated.
+ *
+ * @return {Boolean} Whether the array has items/object has keys.
+ */
+function testPopulated(obj) {
+  var arr = Array.isArray(obj) ? obj : Object.keys(obj);
+  return arr.length > 0;
+}
+
+/**
  * Determines whether a test prop resolves.
  *
  * @param  {String}  test    The name of the property we're using for a test.
@@ -212,9 +224,9 @@ function testSubPath(desired, isHash) {
  */
 function testResolves(test, desired) {
   switch (test) {
-    case 'isFalse':
+    case 'notOk':
       return !desired;
-    case 'isTrue':
+    case 'ok':
       return !!desired;
     case 'path':
       return testPath(desired);
@@ -224,6 +236,10 @@ function testResolves(test, desired) {
       return testSubPath(desired);
     case 'subHash':
       return testSubPath(desired, true);
+    case 'populated':
+      return testPopulated(desired);
+    case 'empty':
+      return !testPopulated(desired);
     default:
       throw (0, _utils.createError)('\n                           Something\'s gone horribly wrong with conditional\n                           routing. Usually this happens if you forget to\n                           include a necessary prop on a `When` component\n                           or spell the prop\'s name wrong.\n                         ');
   }
@@ -236,8 +252,7 @@ function testResolves(test, desired) {
  * @return {Object} Contains query string values.
  */
 function parseSearch() {
-  var loc = typeof window !== 'undefined' ? window.location : { search: '' };
-  var search = loc.search.substring(1);
+  var search = _utils.win.location.search.substring(1);
   try {
     return !search ? {} : JSON.parse('{"' + search.replace(/&/g, '","').replace(/=/g, '":"') + '"}', function (key, value) {
       return key === "" ? value : decodeURIComponent(value);
@@ -258,10 +273,9 @@ function parseSearch() {
  * @return {Object} Contains important info about location.
  */
 function createLocation() {
-  var loc = typeof window !== 'undefined' ? window.location : {};
-  return Object.assign({}, (0, _utils.removeProps)(loc, ['ancestorOrigins', 'assign', 'reload', 'replace']), {
+  return Object.assign({}, (0, _utils.removeProps)(_utils.win.location, ['ancestorOrigins', 'assign', 'reload', 'replace']), {
     params: parseSearch(),
-    hash: normalizeHash(loc.hash || '')
+    hash: normalizeHash(_utils.win.location.hash || '')
   });
 }
 
@@ -332,8 +346,8 @@ function arrayifyChildren(children) {
 // Example:
 // Choose as many options as resolve.
 // You may either specify a component or a single child element.
-<When isTrue={true} component={Foo} />
-<When isTrue={true}>
+<When ok={true} component={Foo} />
+<When ok={true}>
   <Bar prop="prop" />
 </When>
 

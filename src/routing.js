@@ -1,14 +1,16 @@
 import React, { Component } from 'react';
 import { REHYDRATE } from 'redux-persist/constants';
-import { addStoreHook, internals, createError, removeProps } from './utils';
+import { addStoreHook, internals, createError, removeProps, win } from './utils';
 
 const EXCLUSIVE_PROPS = [
-  'isTrue',
-  'isFalse',
+  'ok',
+  'notOk',
   'path',
   'hash',
   'subPath',
-  'subHash'
+  'subHash',
+  'populated',
+  'empty'
 ];
 
 const AFTSLASH = /\/$/;
@@ -20,8 +22,7 @@ const STATEKEY = Symbol();
  * hash change.
  */
 let currentLocation = createLocation();
-typeof window !== 'undefined' &&
-  window.addEventListener('hashchange', () => currentLocation = createLocation());
+win.addEventListener('hashchange', () => currentLocation = createLocation());
 
 
 /*
@@ -30,8 +31,7 @@ typeof window !== 'undefined' &&
  */
 addStoreHook(store => {
   store.dispatch({ type: internals.HASH_PATH })
-  typeof window !== 'undefined' &&
-    window.addEventListener('hashchange', () => store.dispatch({ type: internals.HASH_PATH }));
+  win.addEventListener('hashchange', () => store.dispatch({ type: internals.HASH_PATH }));
 })
 
 
@@ -207,6 +207,18 @@ function testSubPath(desired, isHash) {
 }
 
 /**
+ * Determine whether an object/array is populated.
+ *
+ * @param  {Object|Array} obj Might be populated.
+ *
+ * @return {Boolean} Whether the array has items/object has keys.
+ */
+function testPopulated(obj) {
+  const arr = Array.isArray(obj) ? obj : Object.keys(obj);
+  return arr.length > 0;
+}
+
+/**
  * Determines whether a test prop resolves.
  *
  * @param  {String}  test    The name of the property we're using for a test.
@@ -216,12 +228,14 @@ function testSubPath(desired, isHash) {
  */
 function testResolves(test, desired) {
   switch (test) {
-    case 'isFalse'   : return !desired;
-    case 'isTrue'    : return !!desired;
+    case 'notOk'     : return !desired;
+    case 'ok'        : return !!desired;
     case 'path'      : return testPath(desired);
     case 'hash'      : return testPath(desired, true);
     case 'subPath'   : return testSubPath(desired);
     case 'subHash'   : return testSubPath(desired, true);
+    case 'populated' : return testPopulated(desired);
+    case 'empty'     : return !testPopulated(desired);
     default          : throw createError(
                          `
                            Something's gone horribly wrong with conditional
@@ -240,8 +254,7 @@ function testResolves(test, desired) {
  * @return {Object} Contains query string values.
  */
 function parseSearch() {
-  const loc = typeof window !== 'undefined' ? window.location : {search: ''};
-  const search = loc.search.substring(1);
+  const search = win.location.search.substring(1);
   try {
     return !search ? {}
                    : JSON.parse(
@@ -267,15 +280,14 @@ function parseSearch() {
  * @return {Object} Contains important info about location.
  */
 export function createLocation() {
-  const loc = typeof window !== 'undefined' ? window.location : {};
-  return Object.assign({}, removeProps(loc, [
+  return Object.assign({}, removeProps(win.location, [
     'ancestorOrigins',
     'assign',
     'reload',
     'replace'
   ]), {
     params: parseSearch(),
-    hash: normalizeHash(loc.hash || '')
+    hash: normalizeHash(win.location.hash || '')
   })
 }
 
@@ -345,8 +357,8 @@ export function arrayifyChildren(children) {
 // Example:
 // Choose as many options as resolve.
 // You may either specify a component or a single child element.
-<When isTrue={true} component={Foo} />
-<When isTrue={true}>
+<When ok={true} component={Foo} />
+<When ok={true}>
   <Bar prop="prop" />
 </When>
 

@@ -4,9 +4,9 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 exports.component = component;
 exports.render = render;
@@ -67,82 +67,6 @@ function attachPropTypes(val) {
   val.boolean = val.bool;
   val.function = val.func;
   return val;
-}
-
-/**
- * Creates an object full of useful tools for a component to use.
- *
- * @param  {Object} cache Stores the result of using the component tools.
- *
- * @return {Object} Containing all the tools.
- */
-function generateComponentTools(cache) {
-  var stateSelectors = [];
-  (0, _utils.assertNesting)(cache, 'i');
-
-  /*
-   * We're gonna take inspiration from `combineReducers` and turn
-   * `mapStateToProps` into a function that executes multiple state
-   * mapping functions.
-   */
-  cache.i.values = function (state) {
-    var out = {};
-    stateSelectors.forEach(function (selector) {
-      out = Object.assign({}, out, selector(state));
-    });
-    return out;
-  };
-
-  return {
-
-    /*
-     * Provide prop type handling
-     */
-    ensure: attachPropTypes(function (settings) {
-      return cache.e = settings;
-    }),
-
-    /*
-     * Provide a function that selects state values and converts them to props
-     */
-    infuseState: function infuseState(stateSelect) {
-      return stateSelectors.push(stateSelect);
-    },
-
-    /*
-     * Infuse in a single function and convert it to an action
-     */
-    infuseActions: function infuseActions(name, val) {
-      var actions = (0, _utils.assertNesting)(cache, 'i', 'actions');
-      (typeof name === 'undefined' ? 'undefined' : _typeof(name)) === 'object' ? cache.i.actions = Object.assign(cache.i.actions, name) : actions[name] = val;
-    },
-
-    /*
-     * Infuse in a single function and bind it to the container
-     */
-    infuseBinders: function infuseBinders(name, val) {
-      var binders = (0, _utils.assertNesting)(cache, 'i', 'binders');
-      (typeof name === 'undefined' ? 'undefined' : _typeof(name)) === 'object' ? cache.i.binders = Object.assign(cache.i.binders, name) : binders[name] = val;
-    },
-
-    /*
-     * Infuse in a single function and add it to the props
-     */
-    infuseModules: function infuseModules(name, val) {
-      var modules = (0, _utils.assertNesting)(cache, 'i', 'modules');
-      (typeof name === 'undefined' ? 'undefined' : _typeof(name)) === 'object' ? cache.i.modules = Object.assign(cache.i.modules, name) : modules[name] = val;
-    },
-
-    /*
-     * Use a single object to create packs of actions, binders, and modules
-     */
-    infuse: function infuse(settings) {
-      settings.binders && (cache.i.binders = Object.assign({}, cache.i.binders || {}, settings.binders));
-      settings.actions && (cache.i.actions = Object.assign({}, cache.i.actions || {}, settings.actions));
-      settings.modules && (cache.i.modules = Object.assign({}, cache.i.modules || {}, settings.modules));
-      settings.state && stateSelectors.push(settings.state);
-    }
-  };
 }
 
 /**
@@ -222,6 +146,93 @@ function referencer() {
 }
 
 /**
+ * Creates an object full of useful tools for a component to use.
+ *
+ * @param  {Object}  cache   Stores the result of using the component tools.
+ * @param  {DataAPI} dataAPI An instance of the data api.
+ *
+ * @return {Object} Containing all the tools.
+ */
+function generateComponentTools(cache, dataAPI) {
+  var stateSelectors = [];
+  (0, _utils.assertNesting)(cache, 'i');
+
+  /*
+   * We're gonna take inspiration from `combineReducers` and turn
+   * `mapStateToProps` into a function that executes multiple state
+   * mapping functions.
+   */
+  cache.i.values = function (state) {
+    var out = {};
+    stateSelectors.forEach(function (selector) {
+      out = Object.assign({}, out, selector(state));
+    });
+    return out;
+  };
+
+  return {
+
+    /*
+     * Allow ref capture
+     */
+    referencer: referencer,
+
+    /*
+     * Provide access to the data API
+     */
+    data: dataAPI,
+
+    /*
+     * Provide prop type handling
+     */
+    ensure: attachPropTypes(function (settings) {
+      return cache.e = settings;
+    }),
+
+    /*
+     * Provide a function that selects state values and converts them to props
+     */
+    infuseState: function infuseState(stateSelect) {
+      return stateSelectors.push(stateSelect);
+    },
+
+    /*
+     * Infuse in a single function and convert it to an action
+     */
+    infuseActions: function infuseActions(name, val) {
+      var actions = (0, _utils.assertNesting)(cache, 'i', 'actions');
+      (typeof name === 'undefined' ? 'undefined' : _typeof(name)) === 'object' ? cache.i.actions = Object.assign(cache.i.actions, name) : actions[name] = val;
+    },
+
+    /*
+     * Infuse in a single function and bind it to the container
+     */
+    infuseBinders: function infuseBinders(name, val) {
+      var binders = (0, _utils.assertNesting)(cache, 'i', 'binders');
+      (typeof name === 'undefined' ? 'undefined' : _typeof(name)) === 'object' ? cache.i.binders = Object.assign(cache.i.binders, name) : binders[name] = val;
+    },
+
+    /*
+     * Infuse in a single function and add it to the props
+     */
+    infuseModules: function infuseModules(name, val) {
+      var modules = (0, _utils.assertNesting)(cache, 'i', 'modules');
+      (typeof name === 'undefined' ? 'undefined' : _typeof(name)) === 'object' ? cache.i.modules = Object.assign(cache.i.modules, name) : modules[name] = val;
+    },
+
+    /*
+     * Use a single object to create packs of actions, binders, and modules
+     */
+    infuse: function infuse(settings) {
+      settings.binders && (cache.i.binders = Object.assign({}, cache.i.binders || {}, settings.binders));
+      settings.actions && (cache.i.actions = Object.assign({}, cache.i.actions || {}, settings.actions));
+      settings.modules && (cache.i.modules = Object.assign({}, cache.i.modules || {}, settings.modules));
+      settings.state && stateSelectors.push(settings.state);
+    }
+  };
+}
+
+/**
  * Takes a function and returns a sweet-azz component.
  *
  *   component(({ infuse, ensure }) => {
@@ -243,11 +254,10 @@ function component(componentFunction) {
    * Create the tools that will get passed into the componentFunction.
    */
   var setup = {};
-  var tools = generateComponentTools(setup);
-  var dataAPI = new _data.DataAPI(_store.getState, _store.dispatchToState, getAppId);
   var getAppId = function getAppId() {
     return appId;
   };
+  var tools = generateComponentTools(setup, new _data.DataAPI(_store.getState, _store.dispatchToState, getAppId));
 
   /*
    * Call the componentFunction with its controller functions.
@@ -262,15 +272,6 @@ function component(componentFunction) {
   if (Component.prototype instanceof _react2.default.Component) {
     throw (0, _utils.createError)('\n        Components must return functions. React component classes are not\n        allowed because they have too many potential pitfalls.\n      ');
   }
-
-  /*
-   * Automatically give the user the data module, a location module, and
-   * a reference capture mechanism.
-   */
-  tools.infuseModules({
-    data: dataAPI,
-    referencer: referencer
-  });
 
   /*
    * This part is a little bit of magic. Essentially, we need components to re-render
@@ -288,7 +289,7 @@ function component(componentFunction) {
     var out = {};
 
     /*
-     * Handle data toggles
+     * Cause component to re-render when data changes.
      */
     if (dataCache === state[_utils.internals.DATA]) {
       out.__dataSymbol = dataToggler.current();
@@ -298,13 +299,17 @@ function component(componentFunction) {
     }
 
     /*
-     * Pass in the location object.
+     * Provide state location as a prop.
      */
     out.location = state[_utils.internals.ROUTING];
 
     /*
+     * HACK:
      * Take this opportunity to make sure the data API can
      * access the APP ID.
+     *
+     * It would be nice to not have to weirdly do this inside of
+     * mapStateToProps.
      */
     appId = appId || state[_utils.internals.APP_META].appId;
     return out;

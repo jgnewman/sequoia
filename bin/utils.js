@@ -33,6 +33,14 @@ var internals = exports.internals = {
   HASH_PATH: '@@SQ_HASH_PATH'
 };
 
+/*
+ * Fake `window` if we don't have it.
+ */
+var win = exports.win = typeof window !== 'undefined' ? window : {
+  location: { search: '', hash: '' },
+  addEventListener: function addEventListener() {}
+};
+
 /**
  * Store a reference to a redux store.
  * Whenever a store is registered, run

@@ -8,6 +8,12 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
+var _typeof = typeof Symbol === "function" && _typeof2(Symbol.iterator) === "symbol" ? function (obj) {
+  return typeof obj === "undefined" ? "undefined" : _typeof2(obj);
+} : function (obj) {
+  return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj === "undefined" ? "undefined" : _typeof2(obj);
+};
+
 var _createClass = function () {
   function defineProperties(target, props) {
     for (var i = 0; i < props.length; i++) {
@@ -17,12 +23,6 @@ var _createClass = function () {
     if (protoProps) defineProperties(Constructor.prototype, protoProps);if (staticProps) defineProperties(Constructor, staticProps);return Constructor;
   };
 }();
-
-var _typeof = typeof Symbol === "function" && _typeof2(Symbol.iterator) === "symbol" ? function (obj) {
-  return typeof obj === "undefined" ? "undefined" : _typeof2(obj);
-} : function (obj) {
-  return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj === "undefined" ? "undefined" : _typeof2(obj);
-};
 
 exports.component = component;
 exports.render = render;
@@ -89,82 +89,6 @@ function attachPropTypes(val) {
   val.boolean = val.bool;
   val.function = val.func;
   return val;
-}
-
-/**
- * Creates an object full of useful tools for a component to use.
- *
- * @param  {Object} cache Stores the result of using the component tools.
- *
- * @return {Object} Containing all the tools.
- */
-function generateComponentTools(cache) {
-  var stateSelectors = [];
-  (0, _utils.assertNesting)(cache, 'i');
-
-  /*
-   * We're gonna take inspiration from `combineReducers` and turn
-   * `mapStateToProps` into a function that executes multiple state
-   * mapping functions.
-   */
-  cache.i.values = function (state) {
-    var out = {};
-    stateSelectors.forEach(function (selector) {
-      out = Object.assign({}, out, selector(state));
-    });
-    return out;
-  };
-
-  return {
-
-    /*
-     * Provide prop type handling
-     */
-    ensure: attachPropTypes(function (settings) {
-      return cache.e = settings;
-    }),
-
-    /*
-     * Provide a function that selects state values and converts them to props
-     */
-    infuseState: function infuseState(stateSelect) {
-      return stateSelectors.push(stateSelect);
-    },
-
-    /*
-     * Infuse in a single function and convert it to an action
-     */
-    infuseActions: function infuseActions(name, val) {
-      var actions = (0, _utils.assertNesting)(cache, 'i', 'actions');
-      (typeof name === 'undefined' ? 'undefined' : _typeof(name)) === 'object' ? cache.i.actions = Object.assign(cache.i.actions, name) : actions[name] = val;
-    },
-
-    /*
-     * Infuse in a single function and bind it to the container
-     */
-    infuseBinders: function infuseBinders(name, val) {
-      var binders = (0, _utils.assertNesting)(cache, 'i', 'binders');
-      (typeof name === 'undefined' ? 'undefined' : _typeof(name)) === 'object' ? cache.i.binders = Object.assign(cache.i.binders, name) : binders[name] = val;
-    },
-
-    /*
-     * Infuse in a single function and add it to the props
-     */
-    infuseModules: function infuseModules(name, val) {
-      var modules = (0, _utils.assertNesting)(cache, 'i', 'modules');
-      (typeof name === 'undefined' ? 'undefined' : _typeof(name)) === 'object' ? cache.i.modules = Object.assign(cache.i.modules, name) : modules[name] = val;
-    },
-
-    /*
-     * Use a single object to create packs of actions, binders, and modules
-     */
-    infuse: function infuse(settings) {
-      settings.binders && (cache.i.binders = Object.assign({}, cache.i.binders || {}, settings.binders));
-      settings.actions && (cache.i.actions = Object.assign({}, cache.i.actions || {}, settings.actions));
-      settings.modules && (cache.i.modules = Object.assign({}, cache.i.modules || {}, settings.modules));
-      settings.state && stateSelectors.push(settings.state);
-    }
-  };
 }
 
 /**
@@ -242,6 +166,93 @@ function referencer() {
 }
 
 /**
+ * Creates an object full of useful tools for a component to use.
+ *
+ * @param  {Object}  cache   Stores the result of using the component tools.
+ * @param  {DataAPI} dataAPI An instance of the data api.
+ *
+ * @return {Object} Containing all the tools.
+ */
+function generateComponentTools(cache, dataAPI) {
+  var stateSelectors = [];
+  (0, _utils.assertNesting)(cache, 'i');
+
+  /*
+   * We're gonna take inspiration from `combineReducers` and turn
+   * `mapStateToProps` into a function that executes multiple state
+   * mapping functions.
+   */
+  cache.i.values = function (state) {
+    var out = {};
+    stateSelectors.forEach(function (selector) {
+      out = Object.assign({}, out, selector(state));
+    });
+    return out;
+  };
+
+  return {
+
+    /*
+     * Allow ref capture
+     */
+    referencer: referencer,
+
+    /*
+     * Provide access to the data API
+     */
+    data: dataAPI,
+
+    /*
+     * Provide prop type handling
+     */
+    ensure: attachPropTypes(function (settings) {
+      return cache.e = settings;
+    }),
+
+    /*
+     * Provide a function that selects state values and converts them to props
+     */
+    infuseState: function infuseState(stateSelect) {
+      return stateSelectors.push(stateSelect);
+    },
+
+    /*
+     * Infuse in a single function and convert it to an action
+     */
+    infuseActions: function infuseActions(name, val) {
+      var actions = (0, _utils.assertNesting)(cache, 'i', 'actions');
+      (typeof name === 'undefined' ? 'undefined' : _typeof(name)) === 'object' ? cache.i.actions = Object.assign(cache.i.actions, name) : actions[name] = val;
+    },
+
+    /*
+     * Infuse in a single function and bind it to the container
+     */
+    infuseBinders: function infuseBinders(name, val) {
+      var binders = (0, _utils.assertNesting)(cache, 'i', 'binders');
+      (typeof name === 'undefined' ? 'undefined' : _typeof(name)) === 'object' ? cache.i.binders = Object.assign(cache.i.binders, name) : binders[name] = val;
+    },
+
+    /*
+     * Infuse in a single function and add it to the props
+     */
+    infuseModules: function infuseModules(name, val) {
+      var modules = (0, _utils.assertNesting)(cache, 'i', 'modules');
+      (typeof name === 'undefined' ? 'undefined' : _typeof(name)) === 'object' ? cache.i.modules = Object.assign(cache.i.modules, name) : modules[name] = val;
+    },
+
+    /*
+     * Use a single object to create packs of actions, binders, and modules
+     */
+    infuse: function infuse(settings) {
+      settings.binders && (cache.i.binders = Object.assign({}, cache.i.binders || {}, settings.binders));
+      settings.actions && (cache.i.actions = Object.assign({}, cache.i.actions || {}, settings.actions));
+      settings.modules && (cache.i.modules = Object.assign({}, cache.i.modules || {}, settings.modules));
+      settings.state && stateSelectors.push(settings.state);
+    }
+  };
+}
+
+/**
  * Takes a function and returns a sweet-azz component.
  *
  *   component(({ infuse, ensure }) => {
@@ -263,11 +274,10 @@ function component(componentFunction) {
    * Create the tools that will get passed into the componentFunction.
    */
   var setup = {};
-  var tools = generateComponentTools(setup);
-  var dataAPI = new _data.DataAPI(_store.getState, _store.dispatchToState, getAppId);
   var getAppId = function getAppId() {
     return appId;
   };
+  var tools = generateComponentTools(setup, new _data.DataAPI(_store.getState, _store.dispatchToState, getAppId));
 
   /*
    * Call the componentFunction with its controller functions.
@@ -282,15 +292,6 @@ function component(componentFunction) {
   if (Component.prototype instanceof _react2.default.Component) {
     throw (0, _utils.createError)('\n        Components must return functions. React component classes are not\n        allowed because they have too many potential pitfalls.\n      ');
   }
-
-  /*
-   * Automatically give the user the data module, a location module, and
-   * a reference capture mechanism.
-   */
-  tools.infuseModules({
-    data: dataAPI,
-    referencer: referencer
-  });
 
   /*
    * This part is a little bit of magic. Essentially, we need components to re-render
@@ -308,7 +309,7 @@ function component(componentFunction) {
     var out = {};
 
     /*
-     * Handle data toggles
+     * Cause component to re-render when data changes.
      */
     if (dataCache === state[_utils.internals.DATA]) {
       out.__dataSymbol = dataToggler.current();
@@ -318,13 +319,17 @@ function component(componentFunction) {
     }
 
     /*
-     * Pass in the location object.
+     * Provide state location as a prop.
      */
     out.location = state[_utils.internals.ROUTING];
 
     /*
+     * HACK:
      * Take this opportunity to make sure the data API can
      * access the APP ID.
+     *
+     * It would be nice to not have to weirdly do this inside of
+     * mapStateToProps.
      */
     appId = appId || state[_utils.internals.APP_META].appId;
     return out;
@@ -1060,7 +1065,7 @@ var _routing = require('./routing');
 
 var _component = require('./component');
 
-var NON_NATIVE_PROPS = ['data', 'referencer', 'location', '__dataSymbol'];
+var NON_NATIVE_PROPS = ['location', '__dataSymbol'];
 
 /**
  * A component for redirecting our path.
@@ -1068,11 +1073,11 @@ var NON_NATIVE_PROPS = ['data', 'referencer', 'location', '__dataSymbol'];
 var Redirect = exports.Redirect = (0, _component.component)(function () {
   return function (props) {
     if (!props.to) {
-      window.location.href = '/';
+      _utils.win.location.href = '/';
     } else if (props.to[0] === '#') {
-      window.location.hash = props.to;
+      _utils.win.location.hash = props.to;
     } else {
-      window.location.href = props.to;
+      _utils.win.location.href = props.to;
     }
     return null;
   };
@@ -1635,7 +1640,7 @@ function _interopRequireDefault(obj) {
   return obj && obj.__esModule ? obj : { default: obj };
 }
 
-var EXCLUSIVE_PROPS = ['isTrue', 'isFalse', 'path', 'hash', 'subPath', 'subHash'];
+var EXCLUSIVE_PROPS = ['ok', 'notOk', 'path', 'hash', 'subPath', 'subHash', 'populated', 'empty'];
 
 var AFTSLASH = /\/$/;
 
@@ -1646,7 +1651,7 @@ var STATEKEY = Symbol();
  * hash change.
  */
 var currentLocation = createLocation();
-typeof window !== 'undefined' && window.addEventListener('hashchange', function () {
+_utils.win.addEventListener('hashchange', function () {
   return currentLocation = createLocation();
 });
 
@@ -1656,7 +1661,7 @@ typeof window !== 'undefined' && window.addEventListener('hashchange', function 
  */
 (0, _utils.addStoreHook)(function (store) {
   store.dispatch({ type: _utils.internals.HASH_PATH });
-  typeof window !== 'undefined' && window.addEventListener('hashchange', function () {
+  _utils.win.addEventListener('hashchange', function () {
     return store.dispatch({ type: _utils.internals.HASH_PATH });
   });
 });
@@ -1820,6 +1825,18 @@ function testSubPath(desired, isHash) {
 }
 
 /**
+ * Determine whether an object/array is populated.
+ *
+ * @param  {Object|Array} obj Might be populated.
+ *
+ * @return {Boolean} Whether the array has items/object has keys.
+ */
+function testPopulated(obj) {
+  var arr = Array.isArray(obj) ? obj : Object.keys(obj);
+  return arr.length > 0;
+}
+
+/**
  * Determines whether a test prop resolves.
  *
  * @param  {String}  test    The name of the property we're using for a test.
@@ -1829,9 +1846,9 @@ function testSubPath(desired, isHash) {
  */
 function testResolves(test, desired) {
   switch (test) {
-    case 'isFalse':
+    case 'notOk':
       return !desired;
-    case 'isTrue':
+    case 'ok':
       return !!desired;
     case 'path':
       return testPath(desired);
@@ -1841,6 +1858,10 @@ function testResolves(test, desired) {
       return testSubPath(desired);
     case 'subHash':
       return testSubPath(desired, true);
+    case 'populated':
+      return testPopulated(desired);
+    case 'empty':
+      return !testPopulated(desired);
     default:
       throw (0, _utils.createError)('\n                           Something\'s gone horribly wrong with conditional\n                           routing. Usually this happens if you forget to\n                           include a necessary prop on a `When` component\n                           or spell the prop\'s name wrong.\n                         ');
   }
@@ -1853,8 +1874,7 @@ function testResolves(test, desired) {
  * @return {Object} Contains query string values.
  */
 function parseSearch() {
-  var loc = typeof window !== 'undefined' ? window.location : { search: '' };
-  var search = loc.search.substring(1);
+  var search = _utils.win.location.search.substring(1);
   try {
     return !search ? {} : JSON.parse('{"' + search.replace(/&/g, '","').replace(/=/g, '":"') + '"}', function (key, value) {
       return key === "" ? value : decodeURIComponent(value);
@@ -1875,10 +1895,9 @@ function parseSearch() {
  * @return {Object} Contains important info about location.
  */
 function createLocation() {
-  var loc = typeof window !== 'undefined' ? window.location : {};
-  return Object.assign({}, (0, _utils.removeProps)(loc, ['ancestorOrigins', 'assign', 'reload', 'replace']), {
+  return Object.assign({}, (0, _utils.removeProps)(_utils.win.location, ['ancestorOrigins', 'assign', 'reload', 'replace']), {
     params: parseSearch(),
-    hash: normalizeHash(loc.hash || '')
+    hash: normalizeHash(_utils.win.location.hash || '')
   });
 }
 
@@ -1948,8 +1967,8 @@ function arrayifyChildren(children) {
 // Example:
 // Choose as many options as resolve.
 // You may either specify a component or a single child element.
-<When isTrue={true} component={Foo} />
-<When isTrue={true}>
+<When ok={true} component={Foo} />
+<When ok={true}>
   <Bar prop="prop" />
 </When>
 
@@ -2058,8 +2077,8 @@ function devToolsCompose(disableDevTools) {
     args[_key - 1] = arguments[_key];
   }
 
-  if (!disableDevTools && typeof window !== 'undefined' && window.__REDUX_DEVTOOLS_EXTENSION__) {
-    args.push(window.__REDUX_DEVTOOLS_EXTENSION__());
+  if (!disableDevTools && _utils.win.__REDUX_DEVTOOLS_EXTENSION__) {
+    args.push(_utils.win.__REDUX_DEVTOOLS_EXTENSION__());
   }
   return _redux.compose.apply(null, args);
 }
@@ -2239,6 +2258,14 @@ var internals = exports.internals = {
   HASH_PATH: '@@SQ_HASH_PATH'
 };
 
+/*
+ * Fake `window` if we don't have it.
+ */
+var win = exports.win = typeof window !== 'undefined' ? window : {
+  location: { search: '', hash: '' },
+  addEventListener: function addEventListener() {}
+};
+
 /**
  * Store a reference to a redux store.
  * Whenever a store is registered, run
@@ -2352,7 +2379,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 // /*
 //  * Create an app container component.
 //  */
-// const AppContainer = component(({ infuse, ensure, infuseActions }) => {
+// const AppContainer = component(({ infuse, ensure, infuseActions, data }) => {
 //
 //   /*
 //    * Name all the props to infuse into the component.
@@ -2403,7 +2430,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 //    * Return the rendered, dumb component.
 //    */
 //   return props => {
-//     const { myActions, req, data } = props;
+//     const { myActions, req } = props;
 //
 //     // setTimeout(() => {
 //     //   req()
@@ -2488,42 +2515,38 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 // })
 // render(<Outer />, { target: '#app' })
 
-// render(<When isTrue={true}><div>Hello</div></When>, { target: '#app' })
-
-var Hello = (0, _index.component)(function () {
-  return function (_ref) {
-    var referencer = _ref.referencer;
-
-    var ref = referencer();
-    return React.createElement(
-      'div',
-      null,
-      React.createElement(
-        'div',
-        { className: (0, _index.uuid)(), ref: ref.capture('myDiv') },
-        'Hello'
-      ),
-      React.createElement(
-        'div',
-        { onClick: function onClick() {
-            return ref.getAsync('myDiv', 300, function (myDiv) {
-              return console.log(myDiv);
-            });
-          } },
-        'Click Me'
-      )
-    );
-  };
-});
 
 (0, _index.render)(React.createElement(
-  'div',
-  null,
-  React.createElement(Hello, null),
-  React.createElement(Hello, null)
-), {
-  target: '#app2'
-});
+  _index.When,
+  { ok: true },
+  React.createElement(
+    'div',
+    null,
+    'Hello'
+  )
+), { target: '#app' });
+
+// const Hello = component(({ referencer }) => {
+//   return () => {
+//     const ref = referencer()
+//     return (
+//       <div>
+//         <div className={uuid()} ref={ref.capture('myDiv')}>Hello</div>
+//         <div onClick={() => ref.getAsync('myDiv', 300, myDiv => console.log(myDiv))}>Click Me</div>
+//       </div>
+//     )
+//   }
+// })
+//
+// render(
+//   <div>
+//     <Hello />
+//     <Hello />
+//   </div>,
+//   {
+//     target: '#app2'
+//   }
+// )
 
 },{"../../../bin/index":4,"redux-promise":268}],11:[function(require,module,exports){
 module.exports = require('./lib/axios');

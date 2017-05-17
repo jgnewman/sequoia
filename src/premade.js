@@ -1,10 +1,8 @@
-import { removeProps, createError } from './utils';
+import { removeProps, createError, win } from './utils';
 import { vetProps, arrayifyChildren } from './routing';
 import { component } from './component';
 
 const NON_NATIVE_PROPS = [
-  'data',
-  'referencer',
   'location',
   '__dataSymbol'
 ];
@@ -15,11 +13,11 @@ const NON_NATIVE_PROPS = [
 export const Redirect = component(() => {
   return props => {
     if (!props.to) {
-      window.location.href = '/';
+      win.location.href = '/';
     } else if (props.to[0] === '#') {
-      window.location.hash = props.to;
+      win.location.hash = props.to;
     } else {
-      window.location.href = props.to;
+      win.location.href = props.to;
     }
     return null;
   }

@@ -34,13 +34,67 @@ function attachPropTypes(val) {
 }
 
 /**
+ * @class
+ *
+ * Designed to help with DOM reference capture.
+ */
+class Referencer {
+
+  constructor() {
+    this.__refs = {};
+  }
+
+  /*
+   * Should be called on an element's ref attribute like
+   * `ref={capturer.capture('foo')}`.
+   * You can now reference that real DOM element
+   */
+  capture(name) {
+    return elem => elem && (this.__refs[name] = elem)
+  }
+
+  /*
+   * Return the current DOM element reference immediately.
+   */
+  get(name) {
+    return this.__refs[name];
+  }
+
+  /*
+   * Return the DOM reference on the next run loop.
+   * Helps when you want to call things like focus or
+   * scroll on an element.
+   *
+   * `after` is optional. If included, waits that amount
+   * of time before returning the reference.
+   */
+  getAsync(name, after, cb) {
+    if (typeof after === 'function') {
+      cb = after;
+      after = 0;
+    }
+    setTimeout(() => {
+      cb(this.__refs[name])
+    }, after)
+  }
+}
+
+/*
+ * Functionize our Referencer class.
+ */
+function referencer() {
+  return new Referencer();
+}
+
+/**
  * Creates an object full of useful tools for a component to use.
  *
- * @param  {Object} cache Stores the result of using the component tools.
+ * @param  {Object}  cache   Stores the result of using the component tools.
+ * @param  {DataAPI} dataAPI An instance of the data api.
  *
  * @return {Object} Containing all the tools.
  */
-function generateComponentTools(cache) {
+function generateComponentTools(cache, dataAPI) {
   const stateSelectors = [];
   assertNesting(cache, 'i');
 
@@ -58,6 +112,16 @@ function generateComponentTools(cache) {
   }
 
   return {
+
+    /*
+     * Allow ref capture
+     */
+    referencer: referencer,
+
+    /*
+     * Provide access to the data API
+     */
+    data: dataAPI,
 
     /*
      * Provide prop type handling
@@ -112,59 +176,6 @@ function generateComponentTools(cache) {
 }
 
 /**
- * @class
- *
- * Designed to help with DOM reference capture.
- */
-class Referencer {
-
-  constructor() {
-    this.__refs = {};
-  }
-
-  /*
-   * Should be called on an element's ref attribute like
-   * `ref={capturer.capture('foo')}`.
-   * You can now reference that real DOM element
-   */
-  capture(name) {
-    return elem => elem && (this.__refs[name] = elem)
-  }
-
-  /*
-   * Return the current DOM element reference immediately.
-   */
-  get(name) {
-    return this.__refs[name];
-  }
-
-  /*
-   * Return the DOM reference on the next run loop.
-   * Helps when you want to call things like focus or
-   * scroll on an element.
-   *
-   * `after` is optional. If included, waits that amount
-   * of time before returning the reference.
-   */
-  getAsync(name, after, cb) {
-    if (typeof after === 'function') {
-      cb = after;
-      after = 0;
-    }
-    setTimeout(() => {
-      cb(this.__refs[name])
-    }, after)
-  }
-}
-
-/*
- * Functionize our Referencer class.
- */
-function referencer() {
-  return new Referencer();
-}
-
-/**
  * Takes a function and returns a sweet-azz component.
  *
  *   component(({ infuse, ensure }) => {
@@ -186,9 +197,8 @@ export function component(componentFunction) {
    * Create the tools that will get passed into the componentFunction.
    */
   const setup    = {};
-  const tools    = generateComponentTools(setup);
-  const dataAPI  = new DataAPI(getState, dispatchToState, getAppId)
   const getAppId = () => appId;
+  const tools    = generateComponentTools(setup, new DataAPI(getState, dispatchToState, getAppId));
 
   /*
    * Call the componentFunction with its controller functions.
@@ -210,15 +220,6 @@ export function component(componentFunction) {
   }
 
   /*
-   * Automatically give the user the data module, a location module, and
-   * a reference capture mechanism.
-   */
-  tools.infuseModules({
-    data: dataAPI,
-    referencer: referencer
-  });
-
-  /*
    * This part is a little bit of magic. Essentially, we need components to re-render
    * whenever data updates so their api functions within render methods will actually
    * run. However, we don't want to pass the data itself into the props because the
@@ -234,7 +235,7 @@ export function component(componentFunction) {
     const out = {};
 
     /*
-     * Handle data toggles
+     * Cause component to re-render when data changes.
      */
     if (dataCache === state[internals.DATA]) {
       out.__dataSymbol = dataToggler.current();
@@ -244,13 +245,17 @@ export function component(componentFunction) {
     }
 
     /*
-     * Pass in the location object.
+     * Provide state location as a prop.
      */
     out.location = state[internals.ROUTING];
 
     /*
+     * HACK:
      * Take this opportunity to make sure the data API can
      * access the APP ID.
+     *
+     * It would be nice to not have to weirdly do this inside of
+     * mapStateToProps.
      */
     appId = appId || state[internals.APP_META].appId;
     return out;

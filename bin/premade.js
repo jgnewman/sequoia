@@ -11,7 +11,7 @@ var _routing = require('./routing');
 
 var _component = require('./component');
 
-var NON_NATIVE_PROPS = ['data', 'referencer', 'location', '__dataSymbol'];
+var NON_NATIVE_PROPS = ['location', '__dataSymbol'];
 
 /**
  * A component for redirecting our path.
@@ -19,11 +19,11 @@ var NON_NATIVE_PROPS = ['data', 'referencer', 'location', '__dataSymbol'];
 var Redirect = exports.Redirect = (0, _component.component)(function () {
   return function (props) {
     if (!props.to) {
-      window.location.href = '/';
+      _utils.win.location.href = '/';
     } else if (props.to[0] === '#') {
-      window.location.hash = props.to;
+      _utils.win.location.hash = props.to;
     } else {
-      window.location.href = props.to;
+      _utils.win.location.href = props.to;
     }
     return null;
   };

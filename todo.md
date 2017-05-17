@@ -30,7 +30,6 @@
 - [x] write tests
 - [x] change infuseValues to infuseState
 - [x] allow multiple apps on one page
-- [ ] update live reloader with something that works with node 7
 - [x] queriable.countWhere
 - [x] queriable.updateWhere
 - [x] queriable.subtractWhere
@@ -39,6 +38,9 @@
 - [x] is there a nicer way to update state than Object.assign?
 - [x] queriable.updateOneWhere
 - [x] queriable.subtractOneWhere
+
+- [ ] update live reloader with something that works with node 7
+- [ ] create phantomjs or some such tests
 
 v0.0.8/v0.0.9
 
@@ -57,3 +59,14 @@ v0.0.10
   - [x] referencer.get retrieves a reference immediately
   - [x] referencer.getAsync retrieves a reference with a callback after time
 - [x] fix react-unknown-prop error
+
+v0.0.11
+
+- [x] make `referencer` a component tool instead of a prop
+- [x] make `data` a component tool instead of a prop (need to update docs)
+- [x] smarter `window` referencing
+- [x] more When attributes
+  - [x] `ok` replaced isTrue (need to update docs)
+  - [x] `notOk` replaced isFalse
+  - [x] `populated` (object or array)
+  - [x] `empty` (object or array)

@@ -4,7 +4,7 @@ import { persistStore, autoRehydrate } from 'redux-persist';
 import { createRestReducer } from './data';
 import { createRouteReducer, createLocation } from './routing';
 import { createConstants } from './constants';
-import { registerStore, globalStores, internals, assertNesting } from './utils';
+import { registerStore, globalStores, internals, assertNesting, win } from './utils';
 
 /**
  * Turns reducer functions into identifiable objects.
@@ -21,8 +21,8 @@ class Reducer {
  * Wraps redux's compose function to use REDUX_DEVTOOLS if it exists.
  */
 function devToolsCompose(disableDevTools, ...args) {
-  if (!disableDevTools && typeof window !== 'undefined' && window.__REDUX_DEVTOOLS_EXTENSION__) {
-    args.push(window.__REDUX_DEVTOOLS_EXTENSION__());
+  if (!disableDevTools && win.__REDUX_DEVTOOLS_EXTENSION__) {
+    args.push(win.__REDUX_DEVTOOLS_EXTENSION__());
   }
   return compose.apply(null, args);
 }
