@@ -5,6 +5,8 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.Switch = exports.Otherwise = exports.When = exports.Redirect = undefined;
 
+var _react = require('react');
+
 var _utils = require('./utils');
 
 var _routing = require('./routing');
@@ -56,6 +58,7 @@ var When = exports.When = (0, _component.component)(function () {
        * If we have actual children. Render out the child.
        */
       if (vetted.hasChildren) {
+
         var childIsNativeDom = typeof props.children.type === 'string' && /^[a-z]/.test(props.children.type);
         var propsToRemove = ['component', 'preVet'].concat(vetted.exclusives);
 
@@ -88,7 +91,7 @@ var Otherwise = exports.Otherwise = (0, _component.component)(function () {
       throw (0, _utils.createError)('\n          The `Otherwise` component can only be used as a child of the\n          `Switch` component. Otherwise it\'s redundant.\n        ');
     } else {
       var cleanProps = (0, _utils.removeProps)(props, props.preVet.exclusives);
-      var newProps = Object.assign({}, cleanProps, { isTrue: true });
+      var newProps = Object.assign({}, cleanProps, { ok: true });
       return React.createElement(When, newProps, props.children);
     }
   };

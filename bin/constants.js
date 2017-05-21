@@ -3,83 +3,36 @@
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.constants = undefined;
-
-var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
-
-exports.createConstantsFromArray = createConstantsFromArray;
-exports.createConstant = createConstant;
-exports.getConstantName = getConstantName;
+exports.constants = constants;
 
 var _utils = require('./utils');
 
-/*
- * A place to hold all of our constants.
- */
-var constants = {};
-var nameMap = {};
+var registry = {};
 
 /**
- * Creates a new property in the constants registry whose value is a unique symbol.
+ * Allow users to create and reference constants.
  *
- * @param {String} name  The new property name.
+ * Constants are accessible in the form of functions that always
+ * return the same symbol. This way you get an error in the console
+ * if you make a mistake.
  *
- * @return {undefined}
+ * @param  {String} name The name of the new constant.
+ *
+ * @return {Symbol} The symbol for the new constant.
  */
-function setConstant(name) {
-  if (constants[name]) {
+function constants(name) {
 
-    throw (0, _utils.createError)('\n        Could not create constant `' + name + '` because a constant with the same\n        name already exists.\n      ');
-  } else if (typeof name !== 'string') {
-
-    throw (0, _utils.createError)('\n        Could not create constant `' + name + '` because it is of type ' + (typeof name === 'undefined' ? 'undefined' : _typeof(name)) + '\n        and constants must all be created from strings.\n      ');
-  } else {
-
-    var nameSymbol = Symbol();
-    constants[name] = function () {
-      return nameSymbol;
-    };
-    nameMap[nameSymbol] = name;
-    return nameSymbol;
+  if (typeof name !== 'string') {
+    throw (0, _utils.createError)('Constants must be built from strings.');
   }
-}
 
-/**
- * Loop over an array and create a constant for each one.
- *
- * @param  {Array} namesArray  Contains all the names for new constants.
- *
- * @return {undefined}
- */
-function createConstantsFromArray(namesArray) {
-  namesArray.forEach(function (name) {
-    return setConstant(name);
-  });
-}
+  if (typeof constants[name] === 'function') {
+    throw (0, _utils.createError)('A constant named ' + name + ' already exists.');
+  }
 
-/**
- * Create a single constant and return its actual symbol.
- *
- * @param  {String} name The name of the constant.
- *
- * @return {Symbol} The actual constant.
- */
-function createConstant(name) {
-  return setConstant(name);
+  registry[name] = Symbol();
+  constants[name] = function () {
+    return registry[name];
+  };
+  return registry[name];
 }
-
-/**
- * Retrieve the serializable name of a constant.
- *
- * @param  {Symbol} constant The constant itself.
- *
- * @return {String} The name of the constant.
- */
-function getConstantName(constant) {
-  return nameMap[constant];
-}
-
-/*
- * Export the constants registry.
- */
-exports.constants = constants;

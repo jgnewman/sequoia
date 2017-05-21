@@ -1,317 +1,293 @@
 import React from 'react';
+import { Children } from 'react';
 import ReactDOM from 'react-dom';
-import reduxInfuse from 'react-redux-infuser';
 import PropTypes from 'prop-types';
-import uuid from 'uuid';
-import { Provider } from 'react-redux';
-import { createConstantsFromArray } from './constants';
-import { createRestfulAction, DataAPI } from './data';
-import { getState, dispatchToState, initializeStore, reduce } from './store';
-import { internals, createError, assertNesting, toggleSymbols } from './utils';
+import { connect, Provider } from 'react-redux';
 
-/*
- * First things first: You should never have to import react proper.
- * So in order to make JSX work, we need to make it a global.
- */
-global.React = React;
-
-/**
- * Translates traditional React PropTypes in to all caps prop types in order
- * to fit the scheme of constants in the framework better.
- *
- * @param  {Object|Function} val Something that can have properties attached to it.
- *
- * @return {Object|Function} The input with proptypes attached.
- */
-function attachPropTypes(val) {
-  Object.keys(PropTypes).forEach(typeName => {
-    val[typeName] = PropTypes[typeName];
-  });
-
-  val.boolean = val.bool;
-  val.function = val.func;
-  return val;
-}
+import { INTERNALS, mapObject, toggleSymbols } from './utils';
+import { secretStoreKey, StoreWrapper } from './store';
+import { requestsPackage, DataAPI } from './data';
 
 /**
  * @class
  *
- * Designed to help with DOM reference capture.
+ * Provides tools for configuring a component.
  */
-class Referencer {
-
-  constructor() {
-    this.__refs = {};
-  }
+class ComponentKit {
 
   /*
-   * Should be called on an element's ref attribute like
-   * `ref={capturer.capture('foo')}`.
-   * You can now reference that real DOM element
+   * Build the instance with a storage place.
    */
-  capture(name) {
-    return elem => elem && (this.__refs[name] = elem)
+  constructor(cache, getStoreWrapper) {
+    this.__cache = cache;
+
+    /*
+     * Give the user a data api for accessing Copenhagen data on
+     * the state.
+     */
+    this.data = new DataAPI(getStoreWrapper)
+
+    /*
+     * Map PropTypes to ensure, but don't do it if we
+     * already did it.
+     */
+    if (PropTypes.string !== this.ensure.string) {
+      Object.assign(this.ensure, PropTypes);
+    }
   }
 
-  /*
-   * Return the current DOM element reference immediately.
-   */
-  get(name) {
-    return this.__refs[name];
-  }
-
-  /*
-   * Return the DOM reference on the next run loop.
-   * Helps when you want to call things like focus or
-   * scroll on an element.
+  /**
+   * Allow the user to validate prop types on a component.
    *
-   * `after` is optional. If included, waits that amount
-   * of time before returning the reference.
+   * @param  {Object} propTypes Defines the prop types.
+   *
+   * @return {ComponentKit}
    */
-  getAsync(name, after, cb) {
-    if (typeof after === 'function') {
-      cb = after;
-      after = 0;
+  ensure(propTypes) {
+    const typeCache = this.__cache.propTypes = this.__cache.propTypes || {};
+    mapObject(propTypes, (val, propType) => typeCache[propType] = val);
+    return this;
+  }
+
+  /**
+   * Allow the user to map state to props.
+   *
+   * @param  {Function} infuser Takes `state` and returns a collection of props.
+   *
+   * @return {ComponentKit}
+   */
+  infuseState(infuser) {
+    this.__cache.stateInfusers = this.__cache.stateInfusers || [];
+    this.__cache.stateInfusers.push(infuser);
+    return this;
+  }
+
+  /**
+   * Allow the user to run event handlers with both event and current props.
+   *
+   * @param  {Object} handlers The handlers to infuse.
+   *
+   * @return {ComponentKit}
+   */
+  infuseHandlers(handlers) {
+    this.__cache.handlers = this.__cache.handlers || {};
+    Object.assign(this.__cache.handlers, handlers);
+    return this;
+  }
+
+  /**
+   * Allow the user to map dispatch to props.
+   *
+   * @param  {Function} infuser Takes `actionSymbols` and returns a collection of action functions.
+   *
+   * @return {ComponentKit}
+   */
+  infuseActions(infuser) {
+    this.__cache.actionInfusers = this.__cache.actionInfusers || [];
+    this.__cache.actionInfusers.push(infuser);
+    return this;
+  }
+
+}
+
+/**
+ * Create a function that can be used to trap references
+ * to elements when used in a `ref=` attribute. Subsequently
+ * you will be able to use `ref.get` to retrieve the element.
+ *
+ * @return {Function} The referencer.
+ */
+function createReferencer() {
+  const captures = {};
+
+  /*
+   * Used like `ref={ref('foo')}`.
+   * It returns a function that captures the element under the given name.
+   */
+  const ref = (name) => (elem) => {
+    if (elem) {
+      captures[name] = elem;
+    }
+  }
+
+  /*
+   * Retrieves one of our captured references by name.
+   */
+  ref.get = (name) => captures[name];
+
+  /*
+   * Retrieves a captured reference by name after some time.
+   * Useful for cases when you need to call `scroll` or `focus`.
+   */
+  ref.getAsync = (name, duration, callback) => {
+    if (typeof duration === 'function') {
+      callback = duration;
+      duration = 0;
     }
     setTimeout(() => {
-      cb(this.__refs[name])
-    }, after)
-  }
-}
+      callback(captures[name]);
+    }, duration);
+  };
 
-/*
- * Functionize our Referencer class.
- */
-function referencer() {
-  return new Referencer();
+  return ref;
 }
 
 /**
- * Creates an object full of useful tools for a component to use.
+ * Generates a function that calls dispatch on a store.
  *
- * @param  {Object}  cache   Stores the result of using the component tools.
- * @param  {DataAPI} dataAPI An instance of the data api.
+ * @param  {StoreWrapper} storeWrapper A storeWrapper instance.
+ * @param  {Function}     fn           A function that returns an action to be dispatched.
  *
- * @return {Object} Containing all the tools.
+ * @return {Function} The new dispatcher function.
  */
-function generateComponentTools(cache, dataAPI) {
-  const stateSelectors = [];
-  assertNesting(cache, 'i');
+function createDispatcher(storeWrapper, fn) {
+  return payload => {
+    const actionType = typeof fn === 'function' ? fn(payload) : fn;
+    return storeWrapper.dispatch(
+      typeof actionType === 'string' ? { type: actionType } : actionType
+    );
+  }
+}
+
+/**
+ * Create a new component.
+ *
+ * @param  {Function} generator  Takes an application kit and returns a render function.
+ *
+ * @return {Component} A React component.
+ */
+export function component(generator) {
+  let storeWrapper;
+  const getStoreWrapper = secretKey => {
+    return secretKey === secretStoreKey ? storeWrapper : null;
+  };
+
+  const dataToggler = toggleSymbols();
+  let prevData = {};
 
   /*
-   * We're gonna take inspiration from `combineReducers` and turn
-   * `mapStateToProps` into a function that executes multiple state
-   * mapping functions.
+   * When the generator runs, it will populate the cache (via kit methods) with
+   * data informing how to map state to props, create actions, etc.
    */
-  cache.i.values = state => {
-    let out = {};
-    stateSelectors.forEach(selector => {
-      out = Object.assign({}, out, selector(state))
-    })
-    return out;
-  }
+  const cache = {};
+  const renderFn = generator(new ComponentKit(cache, getStoreWrapper));
 
-  return {
+  /*
+   * Create a proxy component so that we can access render and context.
+   */
+  const Component = class extends React.Component {
+    constructor() {
+      super();
+    }
 
-    /*
-     * Allow ref capture
-     */
-    referencer: referencer,
+    render() {
 
-    /*
-     * Provide access to the data API
-     */
-    data: dataAPI,
+      /*
+       * The referencer prop will be specific to each component and can
+       * be used to trap `ref={...}` references.
+       */
+      const referencer = createReferencer();
+      let newProps = Object.assign({}, this.props, { ref: referencer });
 
-    /*
-     * Provide prop type handling
-     */
-    ensure: attachPropTypes(settings => cache.e = settings),
+      /*
+       * Trap a reference to the storeWrapper so that our
+       * data API will be able to use it.
+       */
+      storeWrapper = this.context[INTERNALS.STORE_REF];
 
-    /*
-     * Provide a function that selects state values and converts them to props
-     */
-    infuseState: stateSelect => stateSelectors.push(stateSelect),
+      /*
+       * If the user has specified action infusers, loop over each group and
+       * merge them together into a prop called `actions` that dispatches the
+       * action to the store. The reason we don't use mapDispatchToProps is
+       * because we need access to the actionNames on the storeWrapper.
+       */
+      if (cache.actionInfusers) {
+        const actionProps = {};
 
-    /*
-     * Infuse in a single function and convert it to an action
-     */
-    infuseActions: (name, val) => {
-      const actions = assertNesting(cache, 'i', 'actions');
-      typeof name === 'object'
-        ? cache.i.actions = Object.assign(cache.i.actions, name)
-        : actions[name] = val;
-    },
+        cache.actionInfusers.forEach(infuser => {
+          Object.assign(
+            actionProps,
+            mapObject(
+              infuser(storeWrapper.actionNames, requestsPackage),
+              fn => createDispatcher(storeWrapper, fn)
+            )
+          );
+        })
 
-    /*
-     * Infuse in a single function and bind it to the container
-     */
-    infuseBinders: (name, val) => {
-      const binders = assertNesting(cache, 'i', 'binders');
-      typeof name === 'object'
-        ? cache.i.binders = Object.assign(cache.i.binders, name)
-        : binders[name] = val;
-    },
+        newProps = Object.assign({}, newProps, { actions: actionProps });
+      }
 
-    /*
-     * Infuse in a single function and add it to the props
-     */
-    infuseModules: (name, val) => {
-      const modules = assertNesting(cache, 'i', 'modules');
-      typeof name === 'object'
-        ? cache.i.modules = Object.assign(cache.i.modules, name)
-        : modules[name] = val;
-    },
+      /*
+       * If the user has specified handlers, make them more robust by
+       * converting each one into a function that is called both with
+       * the event object and the current props.
+       */
+      if (cache.handlers) {
+        const handlers = mapObject(cache.handlers, (val, key) => {
+          return evt => val(evt, newProps);
+        });
+        newProps = Object.assign({}, newProps, { handlers: handlers });
+      }
 
-    /*
-     * Use a single object to create packs of actions, binders, and modules
-     */
-    infuse: settings => {
-      settings.binders && (cache.i.binders = Object.assign({}, cache.i.binders || {}, settings.binders));
-      settings.actions && (cache.i.actions = Object.assign({}, cache.i.actions || {}, settings.actions));
-      settings.modules && (cache.i.modules = Object.assign({}, cache.i.modules || {}, settings.modules));
-      settings.state   && stateSelectors.push(settings.state);
+      return renderFn(newProps);
     }
   }
-}
-
-/**
- * Takes a function and returns a sweet-azz component.
- *
- *   component(({ infuse, ensure }) => {
- *     infuse({ values: state => ({ foo: state.foo, bar: state.bar }) });
- *     ensure({ foo: ensure.string, bar: ensure.string });
- *     return ({ foo, bar }) => <div>{foo}{bar}</div>
- *   })
- *
- * @param  {Function}  componentFunction Called with a collection of tools for building the component.
- *
- * @return {Component} A react component.
- */
-export function component(componentFunction) {
-  const dataToggler = toggleSymbols();
-  let appId;
-  let dataCache;
 
   /*
-   * Create the tools that will get passed into the componentFunction.
+   * Make sure every component can access the store wrapper
+   * we got from our custom provider.
    */
-  const setup    = {};
-  const getAppId = () => appId;
-  const tools    = generateComponentTools(setup, new DataAPI(getState, dispatchToState, getAppId));
+  Component.contextTypes = {
+    [INTERNALS.STORE_REF]: PropTypes.object.isRequired
+  };
 
   /*
-   * Call the componentFunction with its controller functions.
-   * Then attach prop types to the result.
+   * Attach prop types to the component if necessary.
    */
-  let Component = componentFunction(tools);
-  Component.propTypes = setup.e || {};
-
-  /*
-   * Enforce dumb components.
-   */
-  if (Component.prototype instanceof React.Component) {
-    throw createError(
-      `
-        Components must return functions. React component classes are not
-        allowed because they have too many potential pitfalls.
-      `
-    )
+  if (cache.propTypes) {
+    Component.propTypes = cache.propTypes;
   }
 
   /*
-   * This part is a little bit of magic. Essentially, we need components to re-render
-   * whenever data updates so their api functions within render methods will actually
-   * run. However, we don't want to pass the data itself into the props because the
-   * whole point is to not give users tools to screw themselves over.
-   *
-   * So here we infuse a prop called `__dataSymbol` whose value will always be
-   * one of two Symbol constants, making it useless to the user. Whenever the state updates,
-   * we'll check to see if @@SQ_DATA has been updated. If so, we'll toggle the symbols,
-   * thus causing the component to re-render. If not, we'll return the current symbol
-   * and the compnent will not necessarily re-render.
+   * To map state to props, loop over all state infusers and call
+   * each one with the state. Merge all their outputs together and
+   * return the result.
    */
-  tools.infuseState(state => {
+  function mapStateToProps(state) {
     const out = {};
 
     /*
-     * Cause component to re-render when data changes.
+     * Assign props from all of the state infusers.
      */
-    if (dataCache === state[internals.DATA]) {
+    if (cache.stateInfusers) {
+      cache.stateInfusers.forEach(infuser => {
+        Object.assign(out, infuser(state));
+      });
+    }
+
+    /*
+     * Cause the component to re-render when data changes by
+     * toggling a symbol on its props when the incoming data
+     * is different.
+     */
+    if (prevData === state[INTERNALS.DATA_REF]) {
       out.__dataSymbol = dataToggler.current();
     } else {
       out.__dataSymbol = dataToggler();
-      dataCache = state[internals.DATA];
+      prevData = state[INTERNALS.DATA_REF];
     }
 
     /*
      * Provide state location as a prop.
      */
-    out.location = state[internals.ROUTING];
+    out.location = state[INTERNALS.HASH_PATH];
 
-    /*
-     * HACK:
-     * Take this opportunity to make sure the data API can
-     * access the APP ID.
-     *
-     * It would be nice to not have to weirdly do this inside of
-     * mapStateToProps.
-     */
-    appId = appId || state[internals.APP_META].appId;
     return out;
-  })
-
-  /*
-   * If we are using infused actions or values, use reduxInfuse to add
-   * everything in. Otherwise, manually add in binders and modules.
-   */
-  if (setup.i && (setup.i.actions || setup.i.values)) {
-    Component = reduxInfuse(Component, setup.i || {});
   }
 
   /*
-   * Return the component.
+   * Return a connected component so we can make use of
+   * mapStateToProps
    */
-  return Component;
-}
-
-/**
- * Initializes the application by rendering it into a provided
- * element.
- *
- * @param  {JSX}    app      The user's application.
- * @param  {Object} settings Putting this together.
- *
- * @return {Render} The result of calling ReactDOM.render
- */
-export function render(app, settings) {
-  const target = typeof settings.target === 'string' ? document.querySelector(settings.target) : settings.target;
-  const appId  = uuid();
-
-  /*
-   * If the user has not provided state config, prepare a minimal
-   * state config so that all other functionality that needs state
-   * will have it.
-   */
-  if (!settings.stateConfig) {
-    settings.stateConfig = {
-      initialState: {},
-      reducers: {}
-    }
-  }
-
-  /*
-   * Generate constants before anything else happens
-   */
-  createConstantsFromArray(settings.constants || []);
-
-  /*
-   * Initialze the store and render it into a provider.
-   */
-  return ReactDOM.render(
-    <Provider store={initializeStore(settings.stateConfig, appId)}>
-      {app}
-    </Provider>,
-    target
-  );
+  return connect(mapStateToProps, () => ({}))(Component);
 }

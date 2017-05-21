@@ -6,6 +6,12 @@
 
 Sequoia is a full-featured JavaScript application framework. It's powered by React and common React-based tools but you can quickly learn Sequoia without having ever touched React in your life. By the same token, it's similar enough to standard React techniques that, if you are already familiar with React best practices, migrating to a Sequoia mindset can be done extremely quickly.
 
+## Why?
+
+Because the "right way" to structure a scalable React app is arduous. For many would-be users, the sheer amount of independent tools that have to be pulled in and strung together in various ways can present a significant barrier to entry.
+
+Sequoia seeks to provide a single, installable library that assembles each of the best tools in a form that feels like they were all written together, with exponentially less time spent by you learning how to connect components to react-redux, combine reducers, create and dispatch redux thunk actions, etc. Instead, you can pick up Sequoia and get all of those benefits in a single, simple, clean, intuitive package.
+
 ## How It Works
 
 A Sequoia app is a combination of 3 main pieces: composable components, application state, and restful data. You get all of this simply by including Sequoia in your build. There is no need to install multiple disjointed tools.
@@ -13,27 +19,28 @@ A Sequoia app is a combination of 3 main pieces: composable components, applicat
 In it's simplest form, a Sequoia app looks like this:
 
 ```jsx
-import { component, render } from 'sequoia';
+import { application } from 'sequoiajs';
 
-const App = component(() => {
+application(appKit => {
+  appKit.renderIn('#app');
   return () => (
     <div>Hello, world!</div>
   )
 })
-
-render(<App />, { target: '#app' })
 ```
 
 As you can see, Sequoia makes use of React's ["JSX"](https://facebook.github.io/jsx/) dialect. It allows you to think of your components in terms of how they will be rendered into the DOM and is therefore quite convenient.
 
-The above application will create a component called "App" that renders a single div. The `render` function creates an instance of that component and renders it inside a pre-existing DOM element with the id "app".
+The above snippet will create a full-fledged Sequoia app that renders a single div. The `renderIn` method tells the application to find the DOM element with the id "app" and render itself within that element.
 
 ### Composing Components
+
+In Sequoia, your application is broken down into components – small packages of HTML and controlling code that can be instantiated and and nested within other components. In fact the call to `application` generates a component, but it's a special one, intended to live at the top level. To create all of your other components, you'll call the `component` function instead.
 
 In order to illustrate the power of component-based architecture, let's add 1 more level of complexity to the above application.
 
 ```jsx
-import { component, render } from 'sequoia';
+import { application, component } from 'sequoiajs';
 
 const TextBlock = component(() => {
   return props => (
@@ -41,28 +48,27 @@ const TextBlock = component(() => {
   )
 })
 
-const App = component(() => {
+application(appKit => {
+  appKit.renderIn('#app');
   return () => (
     <TextBlock text="Hello, world!" />
   )
 })
-
-render(<App />, { target: '#app' })
 ```
 
-This version of the application produces the same effect, but this time we're nesting our components. Notice that the `TextBlock` component returns a function that renders out a `div`. However, rather than hard-coding in the text that appears inside the div, we're pulling it from an argument object called `props`. In the `App` component, we render out an instance of `TextBlock` and populate its `props.text` property when we specify `text="Hello, world!"`. In this way, everything that looks like an HTML attribute becomes a property in that component's `props` object.
+This version of the application produces the same effect, but this time we're nesting our components. Notice that the `TextBlock` component returns a function that renders out a `div`. However, rather than hard-coding in the text that appears inside the div, we're making it dynamic by pulling it from an argument object called `props`. In the application component, we render out an instance of `TextBlock` and populate its `props.text` property by specifying `text="Hello, world!"`. In this way, everything that looks like an HTML attribute becomes a value in that component's `props` object.
 
 ### Assurances About Props
 
-It may not be immediately clear why each component takes the form of a function returning another function. The reason why is because the top-level function has access to some useful tools that will help you shape your component. For now we'll talk about a tool called `ensure`.
+It may not be immediately clear why components take the form of a function returning another function. The reason why is because the top-level function has access to a kit of component tools that will help you shape your component. For now we'll talk about a tool called `ensure`.
 
 In the case of our `TextBlock` component from above, there's always a risk that we might create an instance of that component, and forget to provide a "text" prop. The `ensure` tool will help us catch those kinds of mistakes. Here's how we might use it in our `TextBlock` component:
 
 ```jsx
-const TextBlock = component(({ ensure }) => {
+const TextBlock = component(kit => {
 
-  ensure({
-    text: ensure.string.isRequired
+  kit.ensure({
+    text: kit.ensure.string.isRequired
   })
 
   return props => (
@@ -71,194 +77,148 @@ const TextBlock = component(({ ensure }) => {
 })
 ```
 
-In this case, we've used `ensure` to guarantee that every time this component is instantiated, it will have a prop called "text" taking the form of a string. If that doesn't happen, we'll get a useful error about it in the console.
+In this case, we've used the `ensure` method to guarantee that every time this component is instantiated, it will have a prop called "text" taking the form of a string. If that doesn't happen, we'll get a useful error about it in the console.
 
-This constitutes the basics of component composition in Sequoia. If you are already familiar with React, you should know that Sequoia components generate stateless React components 100% of the time. Because Sequoia provides built-in state management, you are disallowed from shooting yourself in the foot via component state.
+This constitutes the basics of component composition in Sequoia. If you are already familiar with React, you should know that Sequoia components create extremely light wrappers over React components. Because Sequoia provides built-in state management, all Sequoia components are stateless. In this way, Sequoia helps you avoid distributed state spaghetti.
 
 ### State Management
 
-Every Sequoia application has the option of being supported by a single, global state object. Rather than trying to spaghetti together strange ways for components to communicate with each other and share data, all components will store data on the state and the state will pass that data down as props to all components that need it. Whenever those props update, the components will automatically re-render.
+Every Sequoia application is supported by a single, global state object. Rather than trying to spaghetti together strange ways for components to communicate with each other and share data, all components will store data on the state and the state will pass that data down as props to all components that need it. Whenever the state changes, those props will update and the components will automatically re-render.
 
-You can customize the global state by including a `stateConfig` option upon render.
-
-```jsx
-import { render } from 'sequoia';
-import App from './App';
-
-render(<App />, {
-  target: '#app',
-  stateConfig: { ... }
-})
-```
-
-Some of Sequoia's internal functionality automatically makes use of the global state. However, if we want to really use the global state to our benefit, we will need to configure it. To do that, we'll need to define 2 things: the shape of the initial, blank state and the rules for modifying it.
-
-An initial state should be divided up into sections that correspond to the major pieces of your application. For example, if your application has a few pages, you might create a section on your initial state to correspond to each page. To illustrate...
-
-```javascript
-const initialState = {
-
-  usersPage: {
-    userList: [],
-    activeUser: null
-  },
-
-  documentsPage: {
-    documentList: []
-  },
-
-  settingsPage: {
-    allowSavingDocuments: false
-  }
-
-}
-```
-
-You can then tell your components to observe these values and update when they change by using the `infuseState` component tool:
+In order to help you avoid getting lost doing all kinds of crazy state transformations, Sequoia lets you create rules for updating a given piece of the state and provides functions for triggering those rules. This way the state is always predictable.
 
 ```jsx
-const App = component(({ infuseState }) => {
+import { application, component } from 'sequoiajs';
 
-  infuseState(state => ({
-    userList: state.usersPage.userList
+// Create a TexBlock component
+const TextBlock = component(kit => {
+
+  // Observe state values and map `state.app.text`
+  // to a prop on this component called `text`.
+  kit.infuseState(state => ({
+    text: state.app.text
   }))
 
+  // Make sure our `text` prop is ALWAYS provided
+  // and is ALWAYS a string.
+  kit.ensure({
+    text: kit.ensure.string.isRequired
+  })
+
+  // Render the HTML and display the text.
   return props => (
-    <ul>
-      {props.userList.map((user, index) => {
-        return <li key={index}>{user.name}</li>
-      })}
-    </ul>
+    <div className="text-block">{props.text}</div>
   )
+})
 
+// Initialize our application.
+application(appKit => {
+
+  // Define the selector where the app should render itself.
+  appKit.renderIn('#app');
+
+  // Create rules for a namespace on the state we're calling
+  // "app". Rules always apply to state namespaces.
+  appKit.createRules('app', {
+
+    // The DEFAULT rule defines the initial shape of this
+    // state namespace. Here, the `text` property will
+    // become `state.app.text`.
+    DEFAULT: (update, namespace) => update(namespace, {
+      text: 'Hello, world!'
+    })
+  })
+
+  // This time, we don't need to manually pass a `text`
+  // prop to the TextBlock because the value is
+  // being infused from the state instead.
+  return () => (
+    <TextBlock />
+  )
 })
 ```
-
-In this example, the `App` component renders out an `li` for each object in a list of users. Because our user list is empty in its initial state, we won't get any list items. However, we are planning on adding users to that list (maybe as a result of a data fetch). By using `infuseState`, we are creating component props that observe and correspond to state values. In this case, we've created a prop that corresponds to the `state.usersPage.userList` value. This way, whenever the value on the state is updated with some user objects, our component will automatically re-render and some `li`s will show up on the screen – all because we modify the state and our components respond "reactively".
-
-Now that we understand what the state object is, let's add it to our application configuration:
-
-```jsx
-import { render } from 'sequoia';
-import initialState from './initialState';
-import App from './App';
-
-render(<App />, {
-  target: '#app',
-  stateConfig: {
-    initialState: initialState, // <- Add the initial state here
-    // More stuff will go here...
-  }
-})
-```
-
-Now that we have our initial state defined and hooked in to our App component, let's define the rules for modifying the state.
 
 #### Modifying State
 
-Our application state will be modified by running functions called "reducers" which are essentially just big `switch` statements defining how the state can be transformed under different conditions. We'll want to create a reducer for every section in our initial state. The state object itself should be immutable so the result of any reducer function will be a **NEW** state object with properties copied over from the previous state and modified as necessary.
+Now that we know how to set up default values on a state, and also how to get state values into components, let's take a look at updating values on the state. Remember, by updating a value on the state, any component infusing that value into itself will automatically update to reflect the change.
 
-Each state transformation (or, `case` in our reducer function) should be uniquely named. These names are called "action types" and most people will identify them using strings in all caps. We'll get to triggering these action types in a moment but, for now, let's create an example reducer that will let us add some users to our user list array:
+If we want to update the state, we'll need to define a rule for how that can happen. Let's add a new rule to our `createRules` call from the previous example:
 
-```javascript
-import { reduce } from 'sequoia';
+```jsx
+appKit.createRules('app', {
 
-// Call the `reduce` function, giving us access to initial state
-const usersPageReducer = reduce(initialState => {
+  DEFAULT: (update, namespace) => update(namespace, {
+    text: 'Hello, world!'
+  }),
 
-  // Return the reducer function, taking a state section and an action.
-  // Once we add this reducer to our application config, the
-  // result will become the new value for `state.usersPage`
-  return (usersPage=initialState.usersPage, action) => {
-
-    switch (action.type) {
-
-      // When we get the `ADD_USERS` action type, it should carry a list of
-      // user objects with it. Here, we'll create a new object and
-      // copy over our state values, overwriting `userList` with our
-      // new list of users.
-      case 'ADD_USERS':
-        return Object.assign({}, usersPage, {
-          userList: action.newUsers
-        })
-
-      // If none of our action types were matched, we won't
-      // modify the state.
-      default:
-        return usersPage;
-    }
-  }
+  // When this new rule is triggered, we expect it to be triggered with
+  // a new value for the `text` property.
+  UPDATE_TEXT: (update, namespace, payload) => update(namespace, {
+    text: payload
+  })
 })
 ```
 
-Once our reducers are written, we can add them to our state config:
+Note that we can create as many rules as we want for as many namespaces as we want. Each rule is arbitrarily named, except `DEFAULT` which is necessary for defining the initial shape of this piece of the state.
+
+Now that we have a rule that allows updating the text, let's create a function that triggers it. Functions that trigger rules are called "actions" so, in our component definition, we'll need to call a new kit method called `infuseActions`:
 
 ```jsx
-render(<App />, {
-  target: '#app',
-  stateConfig: {
-    initialState: initialState,
-    reducers: {
-      usersPage: usersPageReducer,
-      documentsPage: documentsPageReducer,
-      settingsPage: settingsPageReducer
-    }
-  }
-})
-```
+const TextBlock = component(kit => {
 
-#### Triggering Action Types
+  // Calling this method gives us a prop on our
+  // component called `actions` which contains
+  // each of the functions we define here.
+  kit.infuseActions(actions => ({
 
-To trigger an action type, we'll need function. Functions that trigger action types are called "actions" themselves. In order to work properly, an action function had to return an object containing at least 1 key: `type`, which names the action type to be triggered. So an example action function that matches our `ADD_USERS` reducer case could look like this:
+    // The object returned by this function identifies
+    // which rule to trigger via the `type` property
+    // and a new value to pass into that rule via the
+    // `payload` property.
+    updateText: newText => ({
+      type: actions.state.UPDATE_TEXT,
+      payload: newText
+    })
 
-```javascript
-function addUsers() {
-  return {
-    type: 'ADD_USERS',
-    newUsers: [ {name: 'Sandy'}, {name: 'Carrington'} ]
-  }
-}
-```
-
-Based on the reducer we already wrote, the `type` key will cause the case to match and the `newUsers` list will replace the current `userList` on the state object.
-
-To wire this normal-looking function up to the state, we need to use the `infuseActions` component tool. This will turn our function into a component prop that, when executed, will trigger an action type on the state.
-
-```jsx
-const App = component(({ infuseState, infuseActions }) => {
-
-  // Turn `state.userList` into a prop on the component.
-  infuseState(state => ({
-    userList: state.usersPage.userList
   }))
 
-  // Turn the `addUsers` function into a prop that triggers
-  // a reducer action.
-  infuseActions({
-    addUsers: addUsers
+  kit.infuseState(state => ({
+    text: state.app.text
+  }))
+
+  kit.ensure({
+    text: kit.ensure.string.isRequired
   })
 
+  // Here, we add a click handler to our div that, when triggered,
+  // will call the updateText action we created. That will in turn
+  // trigger the UPDATE_TEXT rule and the state will be updated.
+  // When the user clicks this div, they will see the value update
+  // automatically from 'Hello, world!' to 'Goodbye, world!' because
+  // this component is observing that property.
   return props => (
-    <div>
-      <a onClick={props.addUsers}>Click me to add users!</a>
-      <ul>
-        {props.userList.map((user, index) => {
-          return <li key={index}>{user.name}</li>
-        })}
-      </ul>
+    <div
+      className="text-block"
+      onClick={() => props.actions.updateText('Goodbye, world!')}>
+      {props.text}
     </div>
   )
-
 })
 ```
 
-In this example, the state's `userList` property is being observed by our component via `infuseState`. We begin with an empty user list on the state and therefore will not see any `li` elements on the screen. However, we've created an `addUsers` function that creates 2 user objects and we've converted it into an action via `infuseActions`. When the `a` tag is clicked, that action will be triggered and 2 user objects will be injected into the state. In response, our component will automatically notice this change and re-render itself, thus spitting out two `li` elements onto the screen.
+
 
 #### Summing Up State
 
 If you are familiar with common React/Redux architecture, this will all make perfect sense to you. If not, it may feel a bit new. If that's the case, here is a brief conclusion tying everything together:
 
-The general idea is that all of your application state is stored in one place. Components observe values on the state and pass those values down to their nested children. Whenever observed values change, all components using them will automatically update. To change those values, we infuse action functions into our components that, when called, will pass new values into reducers which dictate the rules for updating the state..
+The general idea is that all of your application state is stored in one global state object under various namespaces. Components observe values on the state and pass those values down to their nested children. Whenever observed values change, all components using them will automatically update. To change those values, we define rules for how values are allowed to update and then infuse actions that trigger those rules into our components so that we can call them whenever we need to.
+
+
+
+> Everything after this line is outdated. Need to finish updating the readme to reflect the new paradigm.
+
+---
 
 
 ### Working With Data

@@ -1,36 +1,29 @@
-'use strict';
+"use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.registerStore = registerStore;
-exports.addStoreHook = addStoreHook;
+exports.mapObject = mapObject;
 exports.createError = createError;
-exports.assertNesting = assertNesting;
 exports.toggleSymbols = toggleSymbols;
 exports.removeProps = removeProps;
 var symbol1 = Symbol();
 var symbol2 = Symbol();
 
-var storeHooks = [];
-
-/*
- * Allow access to global stores
+/**
+ * Some internal system constants.
+ *
+ * @type {Object}
  */
-var globalStores = exports.globalStores = {};
-
-/*
- * Internal constants.
- */
-var internals = exports.internals = {
-  APP_META: '@@SQ_APP_META',
-  DATA: '@@SQ_DATA',
-  DATA_TO_SUCCESS: '@@SQ_DATA_TO_SUCCESS',
-  DATA_TO_ERROR: '@@SQ_DATA_TO_ERROR',
-  DATA_TO_PENDING: '@@SQ_DATA_TO_PENDING',
-  DATA_TO_DEFAULT: '@@SQ_DATA_TO_DEFAULT',
-  ROUTING: '@@SQ_ROUTING',
-  HASH_PATH: '@@SQ_HASH_PATH'
+var INTERNALS = exports.INTERNALS = {
+  STORE_REF: "@@SQ_Store",
+  DATA_REF: "@@SQ_Data",
+  DATA_RULE: "@@SQ_DataRule",
+  DATA_DEFAULT: "@@SQ_DataDefault",
+  DATA_PENDING: "@@SQ_DataPending",
+  DATA_ERROR: "@@SQ_DataError",
+  DATA_SUCCESS: "@@SQ_DataSuccess",
+  HASH_PATH: "@@SQ_HashPath"
 };
 
 /*
@@ -42,31 +35,20 @@ var win = exports.win = typeof window !== 'undefined' ? window : {
 };
 
 /**
- * Store a reference to a redux store.
- * Whenever a store is registered, run
- * it through all of our store hooks.
+ * Calls `forEach` on an object and returns a new
+ * object with mapped values.
  *
- * @param {String} key    An identifier for the store.
- * @param {Store}  store  A redux store.
+ * @param  {Object}   obj       Plain object.
+ * @param  {Function} iterator  Takes val, key.
  *
- * @return {undefined}
+ * @return {Object} New object with same keys, new vals.
  */
-function registerStore(key, store) {
-  globalStores[key] = store;
-  storeHooks.forEach(function (hook) {
-    return hook(store);
+function mapObject(obj, iterator) {
+  var out = {};
+  Object.keys(obj).forEach(function (key) {
+    out[key] = iterator(obj[key], key);
   });
-}
-
-/**
- * Store hooks will run any time a new store is
- * registered and each one will run with the store
- * as an argument.
- *
- * @param {Function} hook  The hook.
- */
-function addStoreHook(hook) {
-  storeHooks.push(hook);
+  return out;
 }
 
 /**
@@ -78,30 +60,6 @@ function addStoreHook(hook) {
  */
 function createError(message) {
   return new Error('[sequoia] ' + message.trim().replace(/\n\s+/g, ' '));
-}
-
-/**
- * Makes sure a given level of nesting exists in an object. For example:
- *
- *   assertNesting(foo, 'a', 'b', 'c') === foo { a: { b: { c: { } } } }
- *
- * @param  {Object} obj  The initial object that may or may not be nested.
- * @param  {String} nest Names of nested object properties we need.
- *
- * @return {Object} The deepest nested object.
- */
-function assertNesting(obj) {
-  var prevLevel = obj;
-
-  for (var _len = arguments.length, nest = Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
-    nest[_key - 1] = arguments[_key];
-  }
-
-  nest.forEach(function (level) {
-    prevLevel[level] = prevLevel[level] || {};
-    prevLevel = prevLevel[level];
-  });
-  return prevLevel;
 }
 
 /**

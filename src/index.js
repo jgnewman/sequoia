@@ -8,16 +8,10 @@
 export { v4 as uuid } from 'uuid';
 
 /*
- * Import-then-exports
- */
-import collect from './queriable';
-export { collect };
-
-/*
  * Direct exports
  */
 export * from './premade';
-export { reduce } from './store';
-export { component, render } from './component';
-export { constants, createConstant, getConstantName } from './constants';
-export { dataRequest, getData, patchData, postData, deleteData } from './data';
+export { collect } from './collect';
+export { constants} from './constants';
+export { component } from './component';
+export { application } from './application';

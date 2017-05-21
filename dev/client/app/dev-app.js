@@ -1,17 +1,108 @@
 import {
+  application,
   component,
-  render,
-  reduce,
-  When,
-  dataRequest,
-  constants,
-  createConstant,
-  getConstantName,
+  collect,
   Switch,
-  Otherwise,
-  uuid
+  When,
+  Otherwise
 } from '../../../bin/index';
 import promiseWare from 'redux-promise'
+
+
+const Hello = component(kit => {
+
+  kit.ensure({
+    helloWorld: kit.ensure.string.isRequired
+  })
+
+  kit.infuseState(state => ({
+    helloWorld: state.section1.helloWorld
+  }))
+
+  kit.infuseHandlers({
+    handleClick: (evt, props) => {
+      console.log('handling event')
+      console.log(props.ref.get('umbrellaDiv'))
+      //props.actions.updateGreeting('Goodbye, world!')
+      //props.actions.example()
+    }
+  })
+
+  kit.infuseActions((rules, reqs) => ({
+    updateGreeting: rules.section1.UPDATE_GREETING,
+    example: () => reqs.get('MY_DATA', '/')
+  }))
+
+  return (props) => {
+    return (
+      <div ref={props.ref('umbrellaDiv')}>
+        <div onClick={props.handlers.handleClick}>{props.helloWorld}</div>
+        <Switch>
+          <When ok={kit.data.ok('MY_DATA')}>
+            <div>{kit.data.value('MY_DATA')}</div>
+          </When>
+          <Otherwise>
+            <div>Nothing to see here, boss.</div>
+          </Otherwise>
+        </Switch>
+      </div>
+    )
+  }
+
+})
+
+
+const App = application(appKit => {
+
+  appKit.renderIn('#app')
+
+  appKit.config({
+    stateMiddleware: [promiseWare],
+    disableDevTools: false,
+    disableAutoPersist: true,
+    autoPersist: {
+      keyPrefix: 'testapp',
+      done: function () {}
+    }
+  })
+
+  appKit.createRules('section1', {
+    DEFAULT: (update, state) => update(state, {
+      helloWorld: 'Hello, world!',
+      bar: 'bar'
+    }),
+    UPDATE_GREETING: (update, state, payload) => update(state, {
+      helloWorld: 'Goodbye, world!'
+    })
+  })
+
+  appKit.createRules('section2', {
+    DEFAULT: (update, state) => update(state, {
+      baz: 'baz',
+      qux: 'qux'
+    })
+  })
+
+  return () => {
+    return <Hello />
+  }
+})
+
+
+// import {
+//   component,
+//   render,
+//   reduce,
+//   When,
+//   dataRequest,
+//   constants,
+//   createConstant,
+//   getConstantName,
+//   Switch,
+//   Otherwise,
+//   uuid
+// } from '../../../bin/index';
+// import promiseWare from 'redux-promise'
 
 // /*
 //  * Create an app container component.
@@ -153,7 +244,7 @@ import promiseWare from 'redux-promise'
 // render(<Outer />, { target: '#app' })
 
 
-render(<When ok={true}><div>Hello</div></When>, { target: '#app' })
+// render(<When ok={true}><div>Hello</div></When>, { target: '#app' })
 
 
 // const Hello = component(({ referencer }) => {

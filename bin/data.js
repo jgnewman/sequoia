@@ -3,18 +3,12 @@
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.DataAPI = undefined;
+exports.DataAPI = exports.requestsPackage = undefined;
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
+exports.createRestRule = createRestRule;
 exports.createRestfulAction = createRestfulAction;
-exports.createRestReducer = createRestReducer;
-exports.dataRequest = dataRequest;
-exports.getData = getData;
-exports.patchData = patchData;
-exports.postData = postData;
-exports.putData = putData;
-exports.deleteData = deleteData;
 
 var _axios = require('axios');
 
@@ -22,11 +16,51 @@ var _axios2 = _interopRequireDefault(_axios);
 
 var _utils = require('./utils');
 
+var _store = require('./store');
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-var STATEKEY = Symbol();
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+
+/*
+
+How this works:
+
+When you infuseActions, you get a couple tools:
+
+  kit.infuseActions((rules, reqs) => ({
+    updateFoo: rules.app.UPDATE_FOO,
+    getData: reqs.get('MY_DATA', '/conversations/:id')
+  }))
+
+Each req type should create a thunk that requests data.
+Within component kits, you'll get a data tool that allows you to
+interface with data.
+
+  return props => {
+    <When ok={data.ok('MY_DATA')}>
+      { data.value('MY_DATA') }
+    </When>
+  }
+
+To make this work, we'll need a store wrapper. On that wrapper we'll
+generate a secret namespace for storing data. We'll also register a
+micro-reducer for handling requests.
+
+Where it ties in:
+
+- The namespace and rest reducer are registered within `application`.
+- The requests package is handed to actions when they are created within `component`.
+- The data api is instantiated within `component` when we create a new component kit.
+- Since data doesn't flow through as normal props, each component carries a symbol prop
+  that changes when the data is different, causing the component's render function to
+  run.
+
+*/
+
+var ACTION_STRING = _utils.INTERNALS.DATA_REF + ':' + _utils.INTERNALS.DATA_RULE;
 
 /**
  * Triggers a call through axios associated with a property on the
@@ -41,6 +75,7 @@ var STATEKEY = Symbol();
  * @return {undefined}
  */
 function performRestfulAction(settings, extras, dispatch) {
+
   (0, _axios2.default)(settings)
 
   /*
@@ -49,9 +84,10 @@ function performRestfulAction(settings, extras, dispatch) {
    */
   .then(function (result) {
     dispatch({
-      type: _utils.internals.DATA_TO_SUCCESS,
+      type: ACTION_STRING,
       payload: {
         id: settings.id,
+        subrule: _utils.INTERNALS.DATA_SUCCESS,
         status: result.status,
         data: result.data
       }
@@ -69,9 +105,10 @@ function performRestfulAction(settings, extras, dispatch) {
   .catch(function (err) {
     var response = err.response || {};
     dispatch({
-      type: _utils.internals.DATA_TO_ERROR,
+      type: ACTION_STRING,
       payload: {
         id: settings.id,
+        subrule: _utils.INTERNALS.DATA_ERROR,
         status: response.status,
         errorMessage: err.message
       }
@@ -85,11 +122,73 @@ function performRestfulAction(settings, extras, dispatch) {
    * As the request is being made, mark it as pending.
    */
   dispatch({
-    type: _utils.internals.DATA_TO_PENDING,
+    type: ACTION_STRING,
     payload: {
-      id: settings.id
+      id: settings.id,
+      subrule: _utils.INTERNALS.DATA_PENDING
     }
   });
+}
+
+/**
+ * Generates a reducer rule for working with data.
+ *
+ * @return {Function} Will be triggered by data actions.
+ */
+function createRestRule() {
+  return function (update, substate, payload) {
+
+    var id = payload.id;
+    var subrule = payload.subrule;
+    var errMsg = payload.errMsg;
+    var status = payload.status;
+    var data = payload.data;
+
+    switch (subrule) {
+
+      case _utils.INTERNALS.DATA_DEFAULT:
+        return update(substate, _defineProperty({}, id, {
+          ok: false,
+          status: null,
+          errorMessage: null,
+          data: null,
+          pending: false
+        }));
+
+      case _utils.INTERNALS.DATA_PENDING:
+        var prevState = substate[id] || {};
+        return update(substate, _defineProperty({}, id, {
+          ok: false,
+          status: prevState.status || null,
+          errorMessage: prevState.errorMessage || null,
+          data: prevState.data || null,
+          pending: true
+        }));
+
+      case _utils.INTERNALS.DATA_ERROR:
+        throw new Error();
+        return update(substate, _defineProperty({}, id, {
+          ok: false,
+          status: status,
+          errorMessage: errMsg,
+          data: null,
+          pending: false
+        }));
+
+      case _utils.INTERNALS.DATA_SUCCESS:
+        return update(substate, _defineProperty({}, id, {
+          ok: true,
+          status: status,
+          errorMessage: null,
+          data: data,
+          pending: false
+        }));
+
+      default:
+        return update(substate);
+
+    }
+  };
 }
 
 /**
@@ -130,75 +229,101 @@ function createRestfulAction(settings) {
   return thunk;
 }
 
-/**
- * Normalizes state reductions for REST actions.
- *
- * @param  {Object} state   A portion of the state.
- * @param  {Object} action  Contains type and payload.
- *
- * @return {Object} The reduced state
+/*
+ * A package of functions that generate data thunks.
  */
-function createRestReducer(initialState) {
-  return function () {
-    var state = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : initialState[_utils.internals.DATA];
-    var action = arguments[1];
+var requestsPackage = exports.requestsPackage = {
 
-
-    var id = action.payload ? action.payload.id : null;
-    var newState = {};
-
-    switch (action.type) {
-
-      case _utils.internals.DATA_TO_DEFAULT:
-        newState[id] = {
-          ok: false,
-          status: null,
-          errorMessage: null,
-          data: null,
-          pending: false
-        };
-        return Object.assign({}, state, newState);
-
-      case _utils.internals.DATA_TO_PENDING:
-        var prevState = state[id] || {};
-        newState[id] = {
-          ok: false,
-          status: prevState.status || null,
-          errorMessage: prevState.errorMessage || null,
-          data: prevState.data || null,
-          pending: true
-        };
-        return Object.assign({}, state, newState);
-
-      case _utils.internals.DATA_TO_ERROR:
-        var errMessage = action.payload.errorMessage;
-        var errStatus = action.payload.status;
-        newState[id] = {
-          ok: false,
-          status: errStatus,
-          errorMessage: errMessage,
-          data: null,
-          pending: false
-        };
-        return Object.assign({}, state, newState);
-
-      case _utils.internals.DATA_TO_SUCCESS:
-        var data = action.payload.data;
-        var status = action.payload.status;
-        newState[id] = {
-          ok: true,
-          status: status,
-          errorMessage: null,
-          data: data,
-          pending: false
-        };
-        return Object.assign({}, state, newState);
-
-      default:
-        return state;
+  /**
+   * Make a data request.
+   *
+   * @param  {Object} settings Takes the following keys:
+   *                           - stateProp: *{String} The name of the property in the data portion of the state.
+   *                           - method: *{String} 'get', 'post', 'put', 'delete'.
+   *                           - url: *{String} Where to make the request.
+   *                           - data: {Object} Data to send
+   *                           - headers: {Object} Headers to include.
+   *                           - ... All other axios settings arguments ...
+   *
+   * @return {Function} A thunk action.
+   */
+  request: function request(settings) {
+    if (!settings.id) {
+      throw createError('\n          All data actions must be created with an identifier that defines\n          a value on the state where the request will be tracked.\n        ');
     }
-  };
-}
+    return createRestfulAction(settings);
+  },
+
+  /**
+   * Shortcut for making a GET request.
+   *
+   * @param  {String} id       This data point's unique identifier.
+   * @param  {String} url      Where the data is.
+   * @param  {Object} headers  Optional. Headers to pass in.
+   *
+   * @return {Function} A thunk action.
+   */
+  get: function get(id, url, headers) {
+    return this.request({ method: 'get', id: id, url: url, headers: headers || {} });
+  },
+
+  /**
+   * Shortcut for making a PATCH request.
+   *
+   * @param  {String} id       This data point's unique identifier.
+   * @param  {String} url      Where the data should go.
+   * @param  {Object} data     Data to send.
+   * @param  {Object} headers  Optional. Headers to pass in.
+   *
+   * @return {Function} A thunk action.
+   */
+  patch: function patch(id, url, data, headers) {
+    return this.request({ method: 'patch', id: id, url: url, data: data, headers: headers || {} });
+  },
+
+  /**
+   * Shortcut for making a POST request.
+   *
+   * @param  {String} id       This data point's unique identifier.
+   * @param  {String} url      Where the data should go.
+   * @param  {Object} data     Data to send.
+   * @param  {Object} headers  Optional. Headers to pass in.
+   *
+   * @return {Function} A thunk action.
+   */
+  post: function post(id, url, data, headers) {
+    return this.request({ method: 'post', id: id, url: url, data: data, headers: headers || {} });
+  },
+
+  /**
+   * Shortcut for making a PUT request.
+   *
+   * @param  {String} id       This data point's unique identifier.
+   * @param  {String} url      Where the data should go.
+   * @param  {Object} data     Data to send.
+   * @param  {Object} headers  Optional. Headers to pass in.
+   *
+   * @return {Function} A thunk action.
+   */
+  put: function put(id, url, data, headers) {
+    return this.request({ method: 'put', id: id, url: url, data: data, headers: headers || {} });
+  },
+
+  /**
+   * Shortcut for making a DELETE request.
+   *
+   * @param  {String} id       This data point's unique identifier.
+   * @param  {String} url      Where the data lives.
+   * @param  {Object} params   Optional. Extra delete parameters.
+   * @param  {Object} headers  Optional. Headers to pass in.
+   *
+   * @return {Function} A thunk action.
+   */
+  delete: function _delete(id, url, params, headers) {
+    return this.request({ method: 'delete', id: id, url: url, params: params || {}, headers: headers || {} });
+  }
+
+};
 
 /**
  * Class for working with data on a private state section.
@@ -209,35 +334,39 @@ function createRestReducer(initialState) {
 var DataAPI = exports.DataAPI = function () {
 
   /*
-   * Provide fns for retrieving and dispatching to state. Users won't be
-   * able to access these directly because you have to provide a
-   * symbol key in order to use them.
+   * Intantiate the class.
+   * `getStoreWrapper` must be called with `secretStoreKey`
    */
-  function DataAPI(getState, dispatch, getAppId) {
+  function DataAPI(getStoreWrapper) {
     _classCallCheck(this, DataAPI);
 
-    this.__getState = function (key) {
-      return key === STATEKEY ? getState(getAppId()) : null;
-    };
-    this.__dispatch = function (key, action) {
-      return key === STATEKEY && dispatch(getAppId(), action);
-    };
+    this.__getStoreWrapper = getStoreWrapper;
   }
 
-  /**
-   * Retrieve the most recent data returned by the server for a given
-   * transaction.
-   *
-   * @param  {String} id The transaction identifier.
-   *
-   * @return {Serializable} The data if it exists or null.
+  /*
+   * An internal method for retrieving a portion of the data state.
    */
 
 
   _createClass(DataAPI, [{
+    key: '__getDataState',
+    value: function __getDataState(secretKey, id) {
+      return this.__getStoreWrapper(secretKey).get(secretKey).getState()[_utils.INTERNALS.DATA_REF][id];
+    }
+
+    /**
+     * Retrieve the most recent data returned by the server for a given
+     * transaction.
+     *
+     * @param  {String} id The transaction identifier.
+     *
+     * @return {Serializable} The data if it exists or null.
+     */
+
+  }, {
     key: 'value',
     value: function value(id) {
-      var state = this.__getState(STATEKEY)[_utils.internals.DATA][id];
+      var state = this.__getDataState(_store.secretStoreKey, id);
       return state ? state.data : null;
     }
 
@@ -252,7 +381,7 @@ var DataAPI = exports.DataAPI = function () {
   }, {
     key: 'pending',
     value: function pending(id) {
-      var state = this.__getState(STATEKEY)[_utils.internals.DATA][id];
+      var state = this.__getDataState(_store.secretStoreKey, id);
       return state ? state.pending : false;
     }
 
@@ -270,7 +399,7 @@ var DataAPI = exports.DataAPI = function () {
   }, {
     key: 'ok',
     value: function ok(id) {
-      var state = this.__getState(STATEKEY)[_utils.internals.DATA][id];
+      var state = this.__getDataState(_store.secretStoreKey, id);
       return state ? state.ok : false;
     }
 
@@ -287,7 +416,7 @@ var DataAPI = exports.DataAPI = function () {
   }, {
     key: 'notOk',
     value: function notOk(id) {
-      var state = this.__getState(STATEKEY)[_utils.internals.DATA][id];
+      var state = this.__getDataState(_store.secretStoreKey, id);
       return typeof state.status === 'number' && (state.status < 200 || state.status > 299);
     }
 
@@ -302,7 +431,7 @@ var DataAPI = exports.DataAPI = function () {
   }, {
     key: 'status',
     value: function status(id) {
-      var state = this.__getState(STATEKEY)[_utils.internals.DATA][id];
+      var state = this.__getDataState(_store.secretStoreKey, id);
       return state ? state.status : null;
     }
 
@@ -317,7 +446,7 @@ var DataAPI = exports.DataAPI = function () {
   }, {
     key: 'errorMsg',
     value: function errorMsg(id) {
-      var state = this.__getState(STATEKEY)[_utils.internals.DATA][id];
+      var state = this.__getDataState(_store.secretStoreKey, id);
       return state ? state.errorMessage : null;
     }
 
@@ -332,103 +461,16 @@ var DataAPI = exports.DataAPI = function () {
   }, {
     key: 'reset',
     value: function reset(id) {
-      this.__dispatch(STATEKEY, {
-        type: _utils.internals.DATA_TO_DEFAULT,
-        payload: { id: id }
+      var storeWrapper = this.__getStoreWrapper(_store.secretStoreKey);
+      storeWrapper.dispatch({
+        type: ACTION_STRING,
+        payload: {
+          id: id,
+          subrule: _utils.INTERNALS.DATA_DEFAULT
+        }
       });
     }
   }]);
 
   return DataAPI;
 }();
-
-/**
- * Make a data request.
- *
- * @param  {Object} settings Takes the following keys:
- *                           - stateProp: *{String} The name of the property in the data portion of the state.
- *                           - method: *{String} 'get', 'post', 'put', 'delete'.
- *                           - url: *{String} Where to make the request.
- *                           - data: {Object} Data to send
- *                           - headers: {Object} Headers to include.
- *                           - ... All other axios settings arguments ...
- *
- * @return {Function} A thunk action.
- */
-
-
-function dataRequest(settings) {
-  if (!settings.id) {
-    throw (0, _utils.createError)('\n        All data thunks must be created with an `id` setting that defines\n        a value on the state where the request will be tracked.\n      ');
-  }
-  return createRestfulAction(settings);
-}
-
-/**
- * Shortcut for making a GET request.
- *
- * @param  {String} id       This data point's unique identifier.
- * @param  {String} url      Where the data is.
- * @param  {Object} headers  Optional. Headers to pass in.
- *
- * @return {Function} A thunk action.
- */
-function getData(id, url, headers) {
-  return dataRequest({ method: 'get', id: id, url: url, headers: headers || {} });
-}
-
-/**
- * Shortcut for making a PATCH request.
- *
- * @param  {String} id       This data point's unique identifier.
- * @param  {String} url      Where the data should go.
- * @param  {Object} data     Data to send.
- * @param  {Object} headers  Optional. Headers to pass in.
- *
- * @return {Function} A thunk action.
- */
-function patchData(id, url, data, headers) {
-  return dataRequest({ method: 'patch', id: id, url: url, data: data, headers: headers || {} });
-}
-
-/**
- * Shortcut for making a POST request.
- *
- * @param  {String} id       This data point's unique identifier.
- * @param  {String} url      Where the data should go.
- * @param  {Object} data     Data to send.
- * @param  {Object} headers  Optional. Headers to pass in.
- *
- * @return {Function} A thunk action.
- */
-function postData(id, url, data, headers) {
-  return dataRequest({ method: 'post', id: id, url: url, data: data, headers: headers || {} });
-}
-
-/**
- * Shortcut for making a PUT request.
- *
- * @param  {String} id       This data point's unique identifier.
- * @param  {String} url      Where the data should go.
- * @param  {Object} data     Data to send.
- * @param  {Object} headers  Optional. Headers to pass in.
- *
- * @return {Function} A thunk action.
- */
-function putData(id, url, data, headers) {
-  return dataRequest({ method: 'put', id: id, url: url, data: data, headers: headers || {} });
-}
-
-/**
- * Shortcut for making a DELETE request.
- *
- * @param  {String} id       This data point's unique identifier.
- * @param  {String} url      Where the data lives.
- * @param  {Object} params   Optional. Extra delete parameters.
- * @param  {Object} headers  Optional. Headers to pass in.
- *
- * @return {Function} A thunk action.
- */
-function deleteData(id, url, params, headers) {
-  return dataRequest({ method: 'delete', id: id, url: url, params: params || {}, headers: headers || {} });
-}

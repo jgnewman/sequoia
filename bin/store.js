@@ -3,10 +3,11 @@
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.getState = getState;
-exports.dispatchToState = dispatchToState;
-exports.initializeStore = initializeStore;
-exports.reduce = reduce;
+exports.StoreWrapper = exports.secretStoreKey = undefined;
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+exports.onCreateStore = onCreateStore;
 
 var _redux = require('redux');
 
@@ -16,11 +17,7 @@ var _reduxThunk2 = _interopRequireDefault(_reduxThunk);
 
 var _reduxPersist = require('redux-persist');
 
-var _data = require('./data');
-
-var _routing = require('./routing');
-
-var _constants = require('./constants');
+var _constants = require('redux-persist/constants');
 
 var _utils = require('./utils');
 
@@ -28,170 +25,260 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
 
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-/**
- * Turns reducer functions into identifiable objects.
- * Doing this allows us to know that the user would like
- * the initial state handed to the reducer.
+/*
+ * Holds references to hooks to run when stores are created.
  */
-var Reducer = function Reducer(reducer) {
-  _classCallCheck(this, Reducer);
+var storeHooks = [];
 
-  this.reducer = reducer;
-};
+/*
+ * For any internal store related stuff.
+ */
+var secretStoreKey = exports.secretStoreKey = Symbol();
 
 /**
- * Wraps redux's compose function to use REDUX_DEVTOOLS if it exists.
+ * @class
+ *
+ * Creates a more robust Store object that allows us to more easily
+ * reason about what's going on with our Stores.
  */
 
+var StoreWrapper = exports.StoreWrapper = function () {
 
-function devToolsCompose(disableDevTools) {
-  for (var _len = arguments.length, args = Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
-    args[_key - 1] = arguments[_key];
+  /**
+   * @constructor
+   *
+   * @param  {Object} settings User config for the store.
+   *
+   * @return {undefined}
+   */
+  function StoreWrapper(settings) {
+    _classCallCheck(this, StoreWrapper);
+
+    this.settings = settings;
+    this.initialState = {};
+    this.store = null;
+    this.rulesCache = {};
+    this.actionNames = {};
+    this.create();
   }
 
-  if (!disableDevTools && _utils.win.__REDUX_DEVTOOLS_EXTENSION__) {
-    args.push(_utils.win.__REDUX_DEVTOOLS_EXTENSION__());
-  }
-  return _redux.compose.apply(null, args);
-}
+  /**
+   * Returns the actual store.
+   *
+   * @return {Redux Store}
+   */
+
+
+  _createClass(StoreWrapper, [{
+    key: 'get',
+    value: function get(secretKey) {
+      return this.store ? this.store(secretKey) : null;
+    }
+
+    /**
+     * Creates a new namespace on the initialState.
+     *
+     * @param  {String} name The name of the namespace.
+     *
+     * @return {undefined}
+     */
+
+  }, {
+    key: 'createNamespace',
+    value: function createNamespace(name) {
+      this.initialState[name] = this.initialState[name] || {};
+    }
+
+    /**
+     * Creates a new micro-reducer for this store.
+     *
+     * @param  {String|Symbol} name      The action type associated with the reducer.
+     * @param  {String|Symbol} substate  The namespace on the state associated with the rule.
+     * @param  {Function}      reducer   How to reduce this action. Takes update, substate, payload.
+     *
+     * @return {undefined}
+     */
+
+  }, {
+    key: 'registerRule',
+    value: function registerRule(name, substate, reducer) {
+      var ruleName = substate + ':' + name;
+      if (this.rulesCache[ruleName]) {
+        throw (0, _utils.createError)('A rule with the name ' + name + ' already exists.');
+      }
+
+      this.actionNames[substate] = this.actionNames[substate] || {};
+      this.actionNames[substate][name] = ruleName;
+
+      this.rulesCache[ruleName] = { substate: substate, reducer: reducer };
+
+      /*
+       * Automatically dispatch default rules on register.
+       */
+      name === 'DEFAULT' && this.dispatch({ type: substate + ':DEFAULT' });
+    }
+
+    /**
+     * Manually dispatch an action.
+     *
+     * @param  {Object} action  Contains `type` and whatever else.
+     *
+     * @return {undefined}
+     */
+
+  }, {
+    key: 'dispatch',
+    value: function dispatch(action) {
+      var store = this.get(secretStoreKey);
+      store.dispatch(action);
+    }
+
+    /**
+     * Wraps redux's composse function to add in redux
+     * dev tools if it's available in the environment.
+     *
+     * @param  {Any} args The arguments we want to pass to compose.
+     *
+     * @return {Function} The result of calling redux's compose.
+     */
+
+  }, {
+    key: 'compose',
+    value: function compose() {
+      for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
+        args[_key] = arguments[_key];
+      }
+
+      if (!this.settings.disableDevTools && global.__REDUX_DEVTOOLS_EXTENSION__) {
+        args.push(global.__REDUX_DEVTOOLS_EXTENSION__());
+      }
+      return _redux.compose.apply(null, args);
+    }
+
+    /**
+     * Create a single reducer that will serve to pull micro-reducers
+     * from a rules cache as named by action type and run only that function,
+     * as opposed to running EVERY action through EVERY case in EVERY reducer
+     * function as is tradition.
+     *
+     * @return {Object} A new state.
+     */
+
+  }, {
+    key: 'reduce',
+    value: function reduce() {
+      var state = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : this.initialState;
+      var action = arguments[1];
+
+
+      /*
+       * Should look like: `UPDATE_FOO: { substate: 'app', reducer: Function }`
+       */
+      var rule = this.rulesCache[action.type];
+
+      /*
+       * If a rule for this action type exists...
+       */
+      if (rule) {
+
+        /*
+         * Create a function that can update the substate.
+         */
+        var newSubstate = {};
+        var updater = function updater(substate, extensions) {
+          newSubstate[rule.substate] = Object.assign({}, substate || {}, extensions || {});
+        };
+
+        /*
+         * Call the rule's reducer with the updater, the current substate, and
+         * the action payload. Afterward, attach the new substate to the full state.
+         */
+        rule.reducer(updater, state[rule.substate] || {}, action.payload);
+        return Object.assign({}, state, newSubstate);
+      } else if (action.type === _constants.REHYDRATE) {
+        var _Object$assign;
+
+        /*
+         * When autoPersist attempts to rehydrate, clear out any existing
+         * data and don't overwrite hash path stuff.
+         */
+        return Object.assign({}, state, (_Object$assign = {}, _defineProperty(_Object$assign, _utils.INTERNALS.DATA_REF, {}), _defineProperty(_Object$assign, _utils.INTERNALS.HASH_PATH, Object.assign({}, state[_utils.INTERNALS.HASH_PATH])), _Object$assign));
+
+        /*
+         * If no rule for the action type exists, return the state.
+         */
+      } else {
+        return state;
+      }
+    }
+
+    /**
+     * Actually create the redux store.
+     *
+     * @return {undefined}
+     */
+
+  }, {
+    key: 'create',
+    value: function create() {
+
+      /*
+       * Give the user thunk middleware for free. We'll need it.
+       */
+      var middleware = this.settings.stateMiddleware || [];
+      typeof middleware === 'function' && (middleware = [middleware]);
+      middleware.unshift(_reduxThunk2.default);
+
+      /*
+       * Create the actual store.
+       */
+      var store = (0, _redux.createStore)(this.reduce.bind(this), this.initialState, this.compose(_redux.applyMiddleware.apply(undefined, _toConsumableArray(middleware)), this.settings.disableAutoPersist ? function (next) {
+        return function (action) {
+          return next(action);
+        };
+      } : (0, _reduxPersist.autoRehydrate)()));
+
+      /*
+       * Provide means to access the store if we have a secret key for it.
+       */
+      this.store = function (secretKey) {
+        return secretKey === secretStoreKey ? store : null;
+      };
+
+      /*
+       * If the user hasn't disabled auto persistence, go ahead and set up persist.
+       */
+      if (!this.settings.disableAutoPersist) {
+        this.settings.autoPersist = this.settings.autoPersist || {};
+        (0, _reduxPersist.persistStore)(store, this.settings.autoPersist, this.settings.autoPersist.done || function () {});
+      }
+
+      /*
+       * Run all store creation hooks.
+       */
+      storeHooks.forEach(function (hook) {
+        return hook(store);
+      });
+    }
+  }]);
+
+  return StoreWrapper;
+}();
 
 /**
- * A wrapper for Object.assign making it just a little nicer
- * to create a new state.
+ * Register functions that will run on each new store when it
+ * is created.
  *
- * @param  {Object} state    A state object.
- * @param  {Object} newVals  The changes to the state.
- *
- * @return {Object} A new state containing the merges.
- */
-function update(state, newVals) {
-  return Object.assign({}, state, newVals);
-}
-
-/**
- * Get state from the global store.
- *
- * @param  {String} appId  The unique ID for this app
- *
- * @return {Object} The current state object
- */
-function getState(appId) {
-  return _utils.globalStores[appId].getState();
-}
-
-/**
- * Manually dispatch an action.
- *
- * @param  {String} appId      The unique ID for this app
- * @param  {Object} actionObj  The action to dispatch
+ * @param  {Function} hook  The function to run. Takes the store.
  *
  * @return {undefined}
  */
-function dispatchToState(appId, actionObj) {
-  _utils.globalStores[appId].dispatch(actionObj);
-}
 
-/**
- * Creates a Redux store for use in the application.
- *
- * @param  {Object} settings  Must container a `reducers` object and `initialState` object.
- * @param  {String} appId     A unique identifier for this app.
- *
- * @return {Store}  A redux store.
- */
-function initializeStore(settings, appId) {
-  var reducers = settings.reducers;
-  var initialState = settings.initialState;
-  var devToolsDisabled = !!settings.disableDevTools;
-  var persistDisabled = !!settings.disableAutoPersist;
-  var middleware = settings.middleware || [];
 
-  /*
-   * Attach application metadata to the state.
-   */
-  reducers[_utils.internals.APP_META] = function () {
-    var state = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : initialState[_utils.internals.APP_META];
-    return state;
-  };
-  initialState[_utils.internals.APP_META] = {
-    appId: appId
-  };
-
-  /*
-   * Attach the REST reducer to the initial state.
-   */
-  reducers[_utils.internals.DATA] = (0, _data.createRestReducer)(initialState);
-  initialState[_utils.internals.DATA] = {};
-
-  /*
-   * Attach the Route reducer to the initial state.
-   */
-  reducers[_utils.internals.ROUTING] = (0, _routing.createRouteReducer)(initialState);
-  initialState[_utils.internals.ROUTING] = (0, _routing.createLocation)();
-
-  /*
-   * Allow the user to specify a function or array of functions
-   * as middleware.
-   */
-  if (typeof middleware === 'function') {
-    middleware = [middleware];
-  }
-
-  /*
-   * Make sure the user always has thunk middleware for free.
-   */
-  middleware.unshift(_reduxThunk2.default);
-
-  /*
-   * For any wrapped reducers, execute them in order to
-   * add initialState to their closures.
-   */
-  Object.keys(reducers).forEach(function (key) {
-    var reducer = reducers[key];
-    if (reducer instanceof Reducer) {
-      reducers[key] = reducer.reducer(initialState, update);
-    }
-  });
-
-  /*
-   * Create the store.
-   */
-  var store = (0, _redux.createStore)((0, _redux.combineReducers)(reducers), // Combine all reducers. Intitial state should ALWAYS be divided
-  initialState, devToolsCompose(devToolsDisabled, // Disables dev tools
-  _redux.applyMiddleware.apply(undefined, _toConsumableArray(middleware)), persistDisabled ? function (next) {
-    return function (action) {
-      return next(action);
-    };
-  } : (0, _reduxPersist.autoRehydrate)()));
-
-  /*
-   * If the user hasn't disable auto persistence, go ahead and set up persist.
-   */
-  if (!persistDisabled) {
-    (0, _utils.assertNesting)(settings, 'autoPersistConfig');
-    settings.autoPersistConfig.blackList = settings.autoPersistConfig.blacklist || [];
-    settings.autoPersistConfig.blackList.push(_utils.internals.APP_META);
-    (0, _reduxPersist.persistStore)(store, settings.autoPersistConfig, settings.autoPersistDone || function () {});
-  }
-
-  /*
-   * Keep track of the store "globally".
-   */
-  (0, _utils.registerStore)(appId, store);
-
-  return store;
-}
-
-/**
- * Takes a function that will be called with the initial state. That function should
- * return another function that serves as the actual reducer, taking state and action.
- *
- * @param  {Function} reducer Takes initial state. Should return the raw reducer.
- *
- * @return {Reducer}  A Reducer instance.
- */
-function reduce(reducer) {
-  return new Reducer(reducer);
+function onCreateStore(hook) {
+  storeHooks.push(hook);
 }

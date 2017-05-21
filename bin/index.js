@@ -3,7 +3,6 @@
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.deleteData = exports.postData = exports.patchData = exports.getData = exports.dataRequest = exports.getConstantName = exports.createConstant = exports.constants = exports.render = exports.component = exports.reduce = exports.collect = exports.uuid = undefined;
 
 var _uuid = require('uuid');
 
@@ -26,27 +25,12 @@ Object.keys(_premade).forEach(function (key) {
   });
 });
 
-var _store = require('./store');
+var _collect = require('./collect');
 
-Object.defineProperty(exports, 'reduce', {
+Object.defineProperty(exports, 'collect', {
   enumerable: true,
   get: function get() {
-    return _store.reduce;
-  }
-});
-
-var _component = require('./component');
-
-Object.defineProperty(exports, 'component', {
-  enumerable: true,
-  get: function get() {
-    return _component.component;
-  }
-});
-Object.defineProperty(exports, 'render', {
-  enumerable: true,
-  get: function get() {
-    return _component.render;
+    return _collect.collect;
   }
 });
 
@@ -58,65 +42,21 @@ Object.defineProperty(exports, 'constants', {
     return _constants.constants;
   }
 });
-Object.defineProperty(exports, 'createConstant', {
+
+var _component = require('./component');
+
+Object.defineProperty(exports, 'component', {
   enumerable: true,
   get: function get() {
-    return _constants.createConstant;
-  }
-});
-Object.defineProperty(exports, 'getConstantName', {
-  enumerable: true,
-  get: function get() {
-    return _constants.getConstantName;
+    return _component.component;
   }
 });
 
-var _data = require('./data');
+var _application = require('./application');
 
-Object.defineProperty(exports, 'dataRequest', {
+Object.defineProperty(exports, 'application', {
   enumerable: true,
   get: function get() {
-    return _data.dataRequest;
+    return _application.application;
   }
 });
-Object.defineProperty(exports, 'getData', {
-  enumerable: true,
-  get: function get() {
-    return _data.getData;
-  }
-});
-Object.defineProperty(exports, 'patchData', {
-  enumerable: true,
-  get: function get() {
-    return _data.patchData;
-  }
-});
-Object.defineProperty(exports, 'postData', {
-  enumerable: true,
-  get: function get() {
-    return _data.postData;
-  }
-});
-Object.defineProperty(exports, 'deleteData', {
-  enumerable: true,
-  get: function get() {
-    return _data.deleteData;
-  }
-});
-
-var _queriable = require('./queriable');
-
-var _queriable2 = _interopRequireDefault(_queriable);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-exports.collect = _queriable2.default;
-
-/*
- * Direct exports
- */
-
-
-/*
- * Import-then-exports
- */

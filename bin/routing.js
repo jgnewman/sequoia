@@ -4,7 +4,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.createLocation = createLocation;
-exports.createRouteReducer = createRouteReducer;
+exports.createHashRule = createHashRule;
 exports.vetProps = vetProps;
 exports.arrayifyChildren = arrayifyChildren;
 
@@ -12,17 +12,17 @@ var _react = require('react');
 
 var _react2 = _interopRequireDefault(_react);
 
-var _constants = require('redux-persist/constants');
-
 var _utils = require('./utils');
+
+var _store = require('./store');
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 var EXCLUSIVE_PROPS = ['ok', 'notOk', 'path', 'hash', 'subPath', 'subHash', 'populated', 'empty'];
 
 var AFTSLASH = /\/$/;
-
 var STATEKEY = Symbol();
+var ACTION_STRING = _utils.INTERNALS.HASH_PATH + ':DEFAULT';
 
 /*
  * Create one place to track the current location and update it on
@@ -37,10 +37,10 @@ _utils.win.addEventListener('hashchange', function () {
  * Whenever a new store is registered, we'll pass the current location
  * into it. And whenver the hash changes, we'll update the location in the state.
  */
-(0, _utils.addStoreHook)(function (store) {
-  store.dispatch({ type: _utils.internals.HASH_PATH });
+(0, _store.onCreateStore)(function (store) {
+  store.dispatch({ type: ACTION_STRING });
   _utils.win.addEventListener('hashchange', function () {
-    return store.dispatch({ type: _utils.internals.HASH_PATH });
+    return store.dispatch({ type: ACTION_STRING });
   });
 });
 
@@ -282,22 +282,9 @@ function createLocation() {
 /*
  * Creates a reducer for modifying location information.
  */
-function createRouteReducer(initialState) {
-  return function () {
-    var state = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : initialState[_utils.internals.ROUTING];
-    var action = arguments[1];
-
-
-    switch (action.type) {
-
-      case _constants.REHYDRATE:
-      case _utils.internals.HASH_PATH:
-        return Object.assign({}, state, currentLocation);
-
-      default:
-        return state;
-
-    }
+function createHashRule() {
+  return function (update, state) {
+    update(state, currentLocation);
   };
 }
 

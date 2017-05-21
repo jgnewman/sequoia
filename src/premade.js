@@ -1,3 +1,5 @@
+import { Children } from 'react';
+
 import { removeProps, createError, win } from './utils';
 import { vetProps, arrayifyChildren } from './routing';
 import { component } from './component';
@@ -51,6 +53,7 @@ export const When = component(() => {
        * If we have actual children. Render out the child.
        */
       if (vetted.hasChildren) {
+
         const childIsNativeDom = typeof props.children.type === 'string' && /^[a-z]/.test(props.children.type);
         let propsToRemove = ['component', 'preVet'].concat(vetted.exclusives);
 
@@ -63,6 +66,7 @@ export const When = component(() => {
           removeProps(props, propsToRemove),
           props.children.props.children
         )
+
 
       /*
        * Othwerwise, render an instance of the component named in the
@@ -97,7 +101,7 @@ export const Otherwise = component(() => {
       );
     } else {
       const cleanProps = removeProps(props, props.preVet.exclusives);
-      const newProps = Object.assign({}, cleanProps, { isTrue: true });
+      const newProps = Object.assign({}, cleanProps, { ok: true });
       return React.createElement(When, newProps, props.children);
     }
   }

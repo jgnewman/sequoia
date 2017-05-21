@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
-import { REHYDRATE } from 'redux-persist/constants';
-import { addStoreHook, internals, createError, removeProps, win } from './utils';
+
+import { INTERNALS, createError, removeProps, win } from './utils';
+import { onCreateStore } from './store';
 
 const EXCLUSIVE_PROPS = [
   'ok',
@@ -14,8 +15,8 @@ const EXCLUSIVE_PROPS = [
 ];
 
 const AFTSLASH = /\/$/;
-
 const STATEKEY = Symbol();
+const ACTION_STRING = `${INTERNALS.HASH_PATH}:DEFAULT`;
 
 /*
  * Create one place to track the current location and update it on
@@ -29,9 +30,9 @@ win.addEventListener('hashchange', () => currentLocation = createLocation());
  * Whenever a new store is registered, we'll pass the current location
  * into it. And whenver the hash changes, we'll update the location in the state.
  */
-addStoreHook(store => {
-  store.dispatch({ type: internals.HASH_PATH })
-  win.addEventListener('hashchange', () => store.dispatch({ type: internals.HASH_PATH }));
+onCreateStore(store => {
+  store.dispatch({ type: ACTION_STRING })
+  win.addEventListener('hashchange', () => store.dispatch({ type: ACTION_STRING }));
 })
 
 
@@ -294,19 +295,9 @@ export function createLocation() {
 /*
  * Creates a reducer for modifying location information.
  */
-export function createRouteReducer(initialState) {
-  return (state=initialState[internals.ROUTING], action) => {
-
-    switch (action.type) {
-
-      case REHYDRATE:
-      case internals.HASH_PATH:
-        return Object.assign({}, state, currentLocation);
-
-      default:
-        return state;
-
-    }
+export function createHashRule() {
+  return (update, state) => {
+    update(state, currentLocation)
   }
 }
 

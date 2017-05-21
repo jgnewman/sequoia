@@ -70,3 +70,24 @@ v0.0.11
   - [x] `notOk` replaced isFalse
   - [x] `populated` (object or array)
   - [x] `empty` (object or array)
+
+v0.1.0
+
+- [x] a whole new paradigm - much stronger
+  - [x] app configuration
+  - [x] app rendering
+  - [x] easier state setup via "rules"
+  - [x] infusing state
+  - [x] ensuring props
+  - [x] infusing actions
+  - [x] infusing handlers
+  - [x] collections on-the-fly
+  - [x] ref handling (is there a way to auto-pass refs to handlers?)
+  - [x] data requests as actions
+  - [x] routing/decision-making
+  - [x] don't auto-rehydrate location and data
+- [ ] finish rewriting readme
+- [ ] test the various scenarios we were already testing
+- [ ] publish
+- [ ] update todomvc
+- [ ] update docs site

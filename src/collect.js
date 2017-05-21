@@ -337,6 +337,6 @@ class Queriable {
  *
  * @return {Queriable}
  */
-export default function collect(array) {
+export function collect(array) {
   return new Queriable(array);
 }
