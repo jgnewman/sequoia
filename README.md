@@ -35,7 +35,7 @@ The above snippet will create a full-fledged Sequoia app that renders a single d
 
 ### Composing Components
 
-In Sequoia, your application is broken down into components – small packages of HTML and controlling code that can be instantiated and and nested within other components. In fact the call to `application` generates a component, but it's a special one, intended to live at the top level. To create all of your other components, you'll call the `component` function instead.
+In Sequoia, your application is broken down into components – small packages of HTML and controlling code that can be instantiated and nested within other components. In fact the call to `application` generates a component, but it's a special one, intended to live at the top level. To create all of your other components, you'll call the `component` function instead.
 
 In order to illustrate the power of component-based architecture, let's add 1 more level of complexity to the above application.
 
