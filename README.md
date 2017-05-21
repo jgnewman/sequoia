@@ -299,7 +299,7 @@ In terms of performing cool manipulations on a list like this, Sequoia provides 
 ```jsx
 import { component, collect } from 'sequoiajs';
 
-const List = component(kit => {
+const UserList = component(kit => {
 
   kit.infuseState(state => ({ users: state.app.users }))
 
@@ -318,7 +318,7 @@ const List = component(kit => {
 })
 ```
 
-In this example, we use `collect` to create a super-fast, super-light collection on the fly and use the resulting collection's `getAllWhere` method to reduce the users list down to a smaller list containing only the objects that have an `isActive` property set to true.
+In this example, we use `collect` to create a super-fast, super-light collection on-the-fly and use the resulting collection's `getAllWhere` method to reduce the users list down to a smaller list containing only the objects that have an `isActive` property set to true.
 
 For more info on collection methods, check out the [docs](https://sequoiajs.com/docs).
 
