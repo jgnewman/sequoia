@@ -123,7 +123,8 @@ application(appKit => {
 
     // The DEFAULT rule defines the initial shape of this
     // state namespace. Here, the `text` property will
-    // become `state.app.text`.
+    // become `state.app.text` because this is a rule on the
+    // "app" namespace.
     DEFAULT: (update, namespace) => update(namespace, {
       text: 'Hello, world!'
     })
