@@ -5,7 +5,7 @@ const Hello = component(kit => {
   kit.infuseActions((rules, data) => ({
     updateQux: rules.app.UPDATE_FOO,
     updateFoo: payload => ({ type: rules.app.UPDATE_FOO, payload: payload }),
-    updateBar: payload => trigger => trigger(rules.app.updateFoo(payload))
+    updateBar: payload => trigger => trigger(rules.app.updateFoo(payload)) // ??
     updateBaz: payload => data.post('/api/conversations', payload)
   }))
 
