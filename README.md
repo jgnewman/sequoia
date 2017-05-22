@@ -177,7 +177,7 @@ const TextBlock = component(kit => {
     // names a state rule and a `payload` property that
     // will get passed into the rule when it's called.
     updateText: newText => ({
-      type: actions.state.UPDATE_TEXT,
+      type: rules.app.UPDATE_TEXT,
       payload: newText
     })
 
