@@ -176,6 +176,28 @@ var AppKit = function () {
 }();
 
 /**
+ * Determines whether or not to delay app rendering until after state
+ * rehydration.
+ *
+ * Rehydration occurs by default so we'll delay render if there's no config.
+ * By the same token, we WON'T delay render if rehydration is disabled.
+ * If the user has provided autopersist config and disabled the render delay, we won't delay.
+ * Otherwise, we will delay render.
+ *
+ * @param  {Object|undefined} config The user's application config.
+ *
+ * @return {Boolean} Whether or not to delay render
+ */
+
+
+function shouldDelayRender(config) {
+  if (!config) return true;
+  if (config.disableAutoPersist) return false;
+  if (config.autoPersist && config.autoPersist.disableRenderDelay) return false;
+  return true;
+}
+
+/**
  * Create a new application.
  * TODO: Don't allow this to be called inside the nested children of another application call.
  *
@@ -183,12 +205,19 @@ var AppKit = function () {
  *
  * @return {Component} A React component.
  */
-
-
 function application(generator) {
   var appCache = {};
   var Application = generator(new AppKit(appCache));
   var storeWrapper = new _store.StoreWrapper(appCache.config || {});
+
+  /*
+   * Create the function that will render the application.
+   * When we render, pass the storeWrapper down through the
+   * context tree.
+   */
+  var render = function render() {
+    _reactDom2.default.render(_react2.default.createElement(CustomProvider, _defineProperty({}, _utils.INTERNALS.STORE_REF, storeWrapper), _react2.default.createElement(Application, null)), appCache.target);
+  };
 
   /*
    * Register our implicit data namespace and rules.
@@ -225,8 +254,12 @@ function application(generator) {
   }
 
   /*
-   * When we render the application, make sure to pass the store wrapper down
-   * through the context tree.
+   * Render the application either immediately or after rehydration has
+   * completed.
    */
-  _reactDom2.default.render(_react2.default.createElement(CustomProvider, _defineProperty({}, _utils.INTERNALS.STORE_REF, storeWrapper), _react2.default.createElement(Application, null)), appCache.target);
+  if (shouldDelayRender(appCache.config)) {
+    (0, _utils.subscribe)(_utils.INTERNALS.REHYDRATED, render);
+  } else {
+    render();
+  }
 }

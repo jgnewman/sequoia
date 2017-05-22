@@ -86,10 +86,11 @@ v0.1.0
   - [x] data requests as actions
   - [x] routing/decision-making
   - [x] don't auto-rehydrate location and data
-  - [x] when we infuse actions/handlers, don't overwrite these packages coming from parents. just extend them.
-  - [ ] should actions have access to other action FUNCTIONS??
-- [ ] finish rewriting readme
-- [ ] test the various scenarios we were already testing
-- [ ] publish
+  - [x] when we infuse actions/handlers, merge packages coming from parents.
+  - [x] thunk actions now have access to other actions directly instead of dispatch
+  - [x] by default we delay render of app until rehydration completes
+- [x] finish rewriting readme
+- [x] test the various scenarios we were already testing
+- [ ] publish to npm
 - [ ] update todomvc
 - [ ] update docs site

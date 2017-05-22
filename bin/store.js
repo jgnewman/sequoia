@@ -203,6 +203,14 @@ var StoreWrapper = exports.StoreWrapper = function () {
         var _Object$assign;
 
         /*
+         * In case anything is listening for the reydrated event, this is where
+         * it happens.
+         */
+        setTimeout(function () {
+          (0, _utils.publish)(_utils.INTERNALS.REHYDRATED);
+        }, 0);
+
+        /*
          * When autoPersist attempts to rehydrate, clear out any existing
          * data and don't overwrite hash path stuff.
          */

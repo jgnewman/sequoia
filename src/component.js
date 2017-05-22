@@ -136,16 +136,47 @@ function createReferencer() {
  * Generates a function that calls dispatch on a store.
  *
  * @param  {StoreWrapper} storeWrapper A storeWrapper instance.
+ * @param  {Object}       actionProps  The object ultimately containing all of the actions.
  * @param  {Function}     fn           A function that returns an action to be dispatched.
  *
  * @return {Function} The new dispatcher function.
  */
-function createDispatcher(storeWrapper, fn) {
+function createDispatcher(storeWrapper, actionProps, fn) {
+
+  /*
+   * This will be the actual action function.
+   */
   return payload => {
-    const actionType = typeof fn === 'function' ? fn(payload) : fn;
-    return storeWrapper.dispatch(
-      typeof actionType === 'string' ? { type: actionType } : actionType
-    );
+
+    /*
+     * If the user gave us a function, we call it here. We end up with
+     * the type needed for the dispatch.
+     */
+    let actionType = typeof fn === 'function' ? fn(payload) : fn;
+
+    /*
+     * If we got a thunk, re-wrap it so that it access to the other
+     * actions as well.
+     */
+    if (typeof actionType === 'function') {
+      const origActionType = actionType;
+      actionType = dispatch => {
+        return origActionType(actionProps);
+      }
+    }
+
+    /*
+     * If the action type was a string, make an object out of
+     * it. Otherwise, we assume it's already an object or a thunk.
+     */
+    if (typeof actionType === 'string') {
+      actionType = { type: actionType };
+    }
+
+    /*
+     * Dispatch the action type
+     */
+    return storeWrapper.dispatch(actionType);
   }
 }
 
@@ -210,7 +241,7 @@ export function component(generator) {
             newProps.actions || {}, // Merge any any actions passed in from the parent.
             mapObject(
               infuser(storeWrapper.actionNames, requestsPackage),
-              fn => createDispatcher(storeWrapper, fn)
+              fn => createDispatcher(storeWrapper, actionProps, fn)
             )
           );
         })

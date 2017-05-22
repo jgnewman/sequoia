@@ -191,14 +191,47 @@ function createReferencer() {
  * Generates a function that calls dispatch on a store.
  *
  * @param  {StoreWrapper} storeWrapper A storeWrapper instance.
+ * @param  {Object}       actionProps  The object ultimately containing all of the actions.
  * @param  {Function}     fn           A function that returns an action to be dispatched.
  *
  * @return {Function} The new dispatcher function.
  */
-function createDispatcher(storeWrapper, fn) {
+function createDispatcher(storeWrapper, actionProps, fn) {
+
+  /*
+   * This will be the actual action function.
+   */
   return function (payload) {
+
+    /*
+     * If the user gave us a function, we call it here. We end up with
+     * the type needed for the dispatch.
+     */
     var actionType = typeof fn === 'function' ? fn(payload) : fn;
-    return storeWrapper.dispatch(typeof actionType === 'string' ? { type: actionType } : actionType);
+
+    /*
+     * If we got a thunk, re-wrap it so that it access to the other
+     * actions as well.
+     */
+    if (typeof actionType === 'function') {
+      var origActionType = actionType;
+      actionType = function actionType(dispatch) {
+        return origActionType(actionProps);
+      };
+    }
+
+    /*
+     * If the action type was a string, make an object out of
+     * it. Otherwise, we assume it's already an object or a thunk.
+     */
+    if (typeof actionType === 'string') {
+      actionType = { type: actionType };
+    }
+
+    /*
+     * Dispatch the action type
+     */
+    return storeWrapper.dispatch(actionType);
   };
 }
 
@@ -266,7 +299,7 @@ function component(generator) {
           cache.actionInfusers.forEach(function (infuser) {
             Object.assign(actionProps, newProps.actions || {}, // Merge any any actions passed in from the parent.
             (0, _utils.mapObject)(infuser(storeWrapper.actionNames, _data.requestsPackage), function (fn) {
-              return createDispatcher(storeWrapper, fn);
+              return createDispatcher(storeWrapper, actionProps, fn);
             }));
           });
 

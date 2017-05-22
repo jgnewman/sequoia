@@ -2,7 +2,9 @@
 
 **SEQUOIA IS CURRENTLY AN ALPHA TECHNOLOGY, STILL IN ACTIVE DEVELOPMENT. USE AT YOUR OWN RISK.**
 
-[![Build Status](https://travis-ci.org/jgnewman/sequoia.svg?branch=master)](https://travis-ci.org/jgnewman/sequoia)
+![Build Status](https://travis-ci.org/jgnewman/sequoia.svg?branch=master)](https://travis-ci.org/jgnewman/sequoia)
+
+![Sequoia Banner](./banner.svg)
 
 Sequoia is a full-featured JavaScript application framework. It's powered by React and common React-based tools but you can quickly learn Sequoia without having ever touched React in your life. By the same token, it's similar enough to standard React techniques that, if you are already familiar with React best practices, migrating to a Sequoia mindset can be done extremely quickly.
 
@@ -37,7 +39,7 @@ The above snippet will create a full-fledged Sequoia app that renders a single d
 
 ### Composing Components
 
-In Sequoia, your application is broken down into components – small packages of HTML and controlling code that can be instantiated and nested within other components. In fact the call to `application` generates a component, but it's a special component, intended to live at the top level that has access to specific, configuration tools like `renderIn`. To create all of your other components, you'll call the `component` function instead.
+In Sequoia, your application is broken down into components – small packages of HTML and controlling code that can be instantiated and nested within other components. In fact, the call to `application` generates a component, but it's a special component, intended to live at the top level and get access to special configuration tools like `renderIn`. To create all of your other components, you'll call the `component` function instead.
 
 In order to illustrate the power of component-based architecture, let's add 1 more level of complexity to the above application.
 
@@ -96,8 +98,8 @@ import { application, component } from 'sequoiajs';
 
 const TextBlock = component(kit => {
 
-  // Observe state values and map `state.app.text`
-  // to a prop on this component called `text`.
+  // Observe the state value `state.app.text` and
+  // map it to a prop on this component called `text`.
   kit.infuseState(state => ({
     text: state.app.text
   }))
@@ -115,7 +117,7 @@ application(appKit => {
 
   appKit.renderIn('#app');
 
-  // Create rules for a namespace on the state.
+  // Create rules for a namespace on the state called 'app'.
   appKit.createRules('app', {
 
     // The DEFAULT rule defines the initial shape of this
@@ -165,7 +167,7 @@ const TextBlock = component(kit => {
 
   // Create a new prop called `actions` containing
   // all functions defined here.
-  kit.infuseActions(actions => ({
+  kit.infuseActions(rules => ({
 
     // Return an object with a `type` property that
     // names a state rule and a `payload` property that
@@ -202,7 +204,7 @@ const TextBlock = component(kit => {
 
 If you are familiar with common React/Redux architecture, this will likely make perfect sense to you. If not, it may feel a bit new. If that's the case, here is a brief conclusion tying everything together:
 
-The general idea is that all of your application state is stored in one global state object under various namespaces. Components observe values on the state and can pass those values down to their nested children. Whenever observed values change, all components using them will automatically update. To change those values, we define rules for how the state can be transformed, then infuse actions that trigger those rules into our components.
+The general idea is that all of your application state is stored in one global state object under various namespaces. Components observe values on these namespaces and can pass those values down to their nested children. Whenever observed values change, all components using them will automatically update. To change those values, we define rules for how the state can be transformed, then infuse actions that trigger those rules into our components.
 
 ## Other Cool Tricks
 
@@ -222,16 +224,16 @@ kit.infuseActions((rules, reqs) => ({
   bar: payload => ({ type: rules.namespace.BAR, payload: payload }),
 
   // Need to trigger multiple rules? Return a "thunk" and
-  // pass objects to the `trigger` function.
+  // call all the action functions you need.
   baz: payload => {
-    return trigger => {
-      trigger({ type: rules.namespace.FOO })
-      trigger({ type: rules.namespace.BAR })
+    return actions => {
+      actions.foo()
+      actions.bar(payload)
     }
   },
 
   // Need to make an http request? Make a function
-  // that calls one of the `reqs`. More on this later.
+  // that returns one of the "reqs". More on this later.
   qux: () => reqs.get('MY_DATA', '/api/v1/my-data')
 
 }))
@@ -251,7 +253,7 @@ When the user clicks the link, an action called `foo` will run and, as you might
 <a onClick={(evt) => props.actions.foo(evt, props.bar)}>Click me!</a>
 ```
 
-The problem with this solution, however, is not only that it looks kind of gross. Also, every time props change and the component re-renders, you'll be generating a brand new function and throwing the old one a way for no reason.
+The problem with this solution, however, is not only that it looks kind of gross. Also, every time props change and the component re-renders, you'll be generating a brand new function and throwing the old one away for no reason.
 
 To make this whole experience just a bit nicer, Sequoia gives you a component kit method called `infuseHandlers`:
 
@@ -274,9 +276,160 @@ const Clickable = component(kit => {
 
 In this example, we create a new prop called `handlers` containing as many functions as we want to define. These functions can be attached to events in our JSX and, when called, they will be handed both the event object itself and the full collection of all of the props available to the component where they were defined.
 
-### Routing && Decisions
+### Decisions & Routing
+
+In standard ES6 + JSX, there's a bit of syntactical grossness when it comes to working with conditions. For example:
+
+```jsx
+<div>
+  {
+    (() => {
+      if (someCondition) {
+        return (
+          <div>Hello</div>
+        )
+      }
+    })()
+  }
+</div>
+```
+
+To make this a whole lot nicer, Sequoia gives you a pre-made component called `When` for dealing with conditions. Here's how you'd use it to restructure the above code:
+
+```jsx
+<div>
+  <When ok={someCondition}>
+    <div>Hello</div>
+  </When>
+</div>
+```
+
+`When` works like an `if` statement, **not** like an `if...else` statement. In other words, you can create as many instances of `When` as you like and each one will render independently of all the others.
+
+However, there _is_ a way to create an `if...else` situation using the `When` component. To do it, you'll just need to pull in a couple other pre-made components, namely `Switch` and `Otherwise`:
+
+```jsx
+<div>
+  <Switch>
+
+    <When ok={ifCase}>
+      <div>Hello</div>
+    </When>
+
+    <When ok={elseIfCase}>
+      <div>Goodbye</div>
+    </When>
+
+    <Otherwise>
+      <div>I'm the else case!</div>
+    </Otherwise>
+
+  </Switch>
+</div>
+```
+
+The `Switch` component takes instances of `When` and `Otherwise` as its children and will execute the first one that resolves truthily. This way, you can check as many conditions as you like, knowing that only one of them will ever get executed. `Otherwise` always resolves truthily so you'll want to make sure it falls at the end, just like in a standard `else` case.
+
+What's interesting is that you have lots of other options besides just `ok` for `When` component props, and some of them can turn this combination of decision-making components into a pretty nice little router. For example:
+
+```jsx
+import { application, Switch, When } from 'sequoiajs';
+
+// Import some components that render out different page content.
+import { HomePage } from './homepage';
+import { AboutPage } from './aboutpage';
+import { ContactPage } from './contactpage';
+
+application(appKit => {
+
+  appKit.renderIn('#app');
+
+  return () => (
+    <Switch>
+      <When path="/" component={HomePage} />
+      <When path="/about" component={AboutPage} />
+      <When path="/contact" component={ContactPage} />
+    </Switch>
+  )
+})
+```
+
+This, of course, is a fairly basic example, but it should serve to illustrate how easy routing can be in Sequoia. For more info on what you can do with `When` or on how to set up routing with hash paths, redirects, and other cool stuff, check out the [docs](https://sequoiajs.com/docs).
 
 ### Data Requests
+
+Sequoia uses [axios](https://github.com/mzabriskie/axios) under the hood for http requests. You'll eventually need to know that if you want to take full advantage of Sequoia's more advanced ajax functionality. But in terms of a basic overview, Sequoia has a very particular idea about how you ought to be working with your data in order for your application to be scalable.
+
+Specifically, fetched data ought to flow through the state just like all other data. This way, things can automatically re-render when the data changes and you can deal with it nicely throughout your nested components.
+
+However, fetching data can be unpredictable. You might get success or you might get an error. At any given time, you may or may not have data in the state. There's even that weird limbo to account for while the request is currently out. It would be extremely cumbersome to have to set up rules to handle all of the possibilities so Sequoia has handled it for you.
+
+To begin, you'll want to know that data is always fetched via special actions called "reqs" (short for "requests"). When you infuse actions into a component, you get access to all of these reqs:
+
+```javascript
+kit.infuseActions((rules, reqs) => ({
+  getUsers: () => reqs.get('USER_LIST', '/api/v1/users')
+}))
+```
+
+In this example, we're creating an action function called `getUsers` that returns an instance of `reqs.get`. The first argument we pass to every req is a unique string that singles it out from all other data requests in the application. In this case, our second argument is the URL we want to make a GET request to.
+
+Because data may or may not exist at any given time, it doesn't make sense for it to flow directly down to your components through the props. It would make things especially complicated when trying to ensure your prop types and so forth. So instead, every component kit comes with a data api for working with data. To illustrate...
+
+```jsx
+import { component, When } from 'sequoiajs';
+import { Spinner } from './my-spinner';
+
+const UserList = component(kit => {
+
+  kit.infuseActions((rules, reqs) => ({
+    getUsers: () => reqs.get('USER_LIST', '/api/v1/users')
+  }))
+
+  kit.infuseHandlers({
+    handleClick: (evt, props) => {
+      evt.preventDefault();
+      props.actions.getUsers()
+    }
+  })
+
+  return (
+    <div>
+
+      <a onClick={props.handlers.handleClick}>
+        Click me to get users!
+      </a>
+
+      {/* Once data has been fetched, display a list of users. */}
+      <When ok={kit.data.ok('USER_LIST')}>
+        <ul>
+          {kit.data.value('USER_LIST').map(user => {
+            return <li>{user.name}</li>
+          })}
+        </ul>
+      </When>
+
+      {/* If the request failed, display the resulting error message. */}
+      <When ok={kit.data.notOk('USER_LIST')}>
+        <span>{kit.data.errorMsg('USER_LIST')}</span>
+      </When>
+
+      {/* While the request is pending, display a spinner. */}
+      <When ok={kit.data.pending('USER_LIST')}>
+        <Spinner />
+      </When>
+
+    </div>
+  )
+
+})
+```
+
+In this example, we provide an `a` tag the user can click to fetch data. Based on the state of that data, we'll display different things. Even though the data isn't a direct prop of the component, the component will still automatically re-render when the state of the data changes!
+
+When the request was successful and we have data, we'll display a list of users. When the request failed, we'll display the resulting error message. While the request is pending, we'll display a spinner component (not included with the package).
+
+There is a lot more that can be done with data requests. But I'll leave you to explore that in the [docs](https://sequoiajs.com/docs).
 
 ### Collections On-the-Fly
 
@@ -322,6 +475,40 @@ In this example, we use `collect` to create a super-fast, super-light collection
 
 For more info on collection methods, check out the [docs](https://sequoiajs.com/docs).
 
+### Refs
+
+Every so often you'll need to perform a direct manipulation on an actual DOM element. Though this should be avoided as much as possible, sometimes there's just no way around it, such as when needing to trigger a `focus` event.
+
+To help you do this, Sequoia provides a nice technique for referencing actual DOM elements via an automatic prop available to every component called `ref`. You'll use this with the `ref=` attribute in your JSX tags. Following is an example of a component that uses `ref` to allow you to trigger a focus on an `input` tag by clicking an `a` tag.
+
+```jsx
+component(kit => {
+
+  kit.infuseHandlers({
+
+    handleClick: (evt, props) => {
+      evt.preventDefault();
+      props.ref.get('myInput').focus()
+    }
+
+  })
+
+  return props => (
+    <div>
+
+      <a onClick={props.handlers.handleClick}>
+        Click me to trigger focus on the input!
+      </a>
+
+      <input type="text" ref={props.ref('myInput')} />
+
+    </div>
+  )
+})
+```
+
+In this example, we created a reference to the `input` tag by calling `props.ref('myInput')` within its `ref` attribute. Having done this, we are free to reference this DOM node elsewhere by calling `props.ref.get('myInput')`. In this case, we've put a click handler on the a tag that, when executed, will grab a reference to the `input` tag and trigger a focus on it.
+
 ### Constants
 
 Sometimes it can be nice to reference a set of unchanging values, rather than identifying things with strings all over the place and risking weird bugs resulting from typos.
@@ -355,6 +542,31 @@ console.log(uuid()) // <- '5dd8a17d-84f3-46d8-a1ac-8fa186155d77'
 ```
 
 
-> Everything after this line is outdated. Need to finish updating the readme to reflect the new paradigm.
+## Installing Sequoia
 
----
+Sequoia is available over npm and Yarn under the package name "sequoiajs".
+
+> Note that the framework is called "Sequoia", **not** "Sequoia jay ess". The package name has "js" on the end of it for literally no other reason than that there is a guy in Japan who owns the "sequoia" package name on npm and won't respond to my emails about it even though he hasn't touched it in years.
+
+To download it, simply run the bash one-liner `$ yarn add sequoiajs` or `$ npm install sequoiajs`.
+
+From here, you'll probably want to use ES6 features and JSX. Luckily, Sequoia doesn't add any complexity to that process. Following is an example of a Gulp task that uses Browserify and Babel to compile a Sequoia app. Note that _this exact same task_ will also compile a React app so, if you're not a Gulp fan, the important takeaway is that if you can compile ES6 and JSX, you can compile a Sequoia app. There's nothing _more special_ about it.
+
+```javascript
+import gulp from 'gulp';
+import browserify from 'browserify';
+import babelify from 'babelify';
+import source from 'vinyl-source-stream';
+import buffer from 'vinyl-buffer';
+
+gulp.task('compile', () => {
+  return browserify(['src/javascript/app-index.js'])
+    .transform('babelify', {presets: ['es2015', 'react']})
+    .bundle()
+    .pipe(source('app.js'))
+    .pipe(buffer())
+    .pipe(gulp.dest('public/javascript'));
+});
+```
+
+Although Sequoia is a framework that provides a core of commonly-needed application features, you will likely end up adding more packages. The great thing is, any package that is compatible with React ought to be compatible with Sequoia as well. Sequoia components are just React components after all. So there is already an extensive amount of cool add-ons you can try out with Sequoia. Just remember to have fun while you're at it!

@@ -3,7 +3,7 @@ import thunkware from 'redux-thunk';
 import { persistStore, autoRehydrate } from 'redux-persist';
 import { REHYDRATE } from 'redux-persist/constants';
 
-import { INTERNALS, createError } from './utils';
+import { INTERNALS, createError, publish } from './utils';
 
 /*
  * Holds references to hooks to run when stores are created.
@@ -146,6 +146,14 @@ export class StoreWrapper {
       return Object.assign({}, state, newSubstate);
 
     } else if (action.type === REHYDRATE) {
+
+      /*
+       * In case anything is listening for the reydrated event, this is where
+       * it happens.
+       */
+      setTimeout(() => {
+        publish(INTERNALS.REHYDRATED);
+      }, 0)
 
       /*
        * When autoPersist attempts to rehydrate, clear out any existing

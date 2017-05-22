@@ -7,8 +7,12 @@ exports.mapObject = mapObject;
 exports.createError = createError;
 exports.toggleSymbols = toggleSymbols;
 exports.removeProps = removeProps;
+exports.subscribe = subscribe;
+exports.publish = publish;
 var symbol1 = Symbol();
 var symbol2 = Symbol();
+
+var events = {};
 
 /**
  * Some internal system constants.
@@ -23,7 +27,8 @@ var INTERNALS = exports.INTERNALS = {
   DATA_PENDING: "@@SQ_DataPending",
   DATA_ERROR: "@@SQ_DataError",
   DATA_SUCCESS: "@@SQ_DataSuccess",
-  HASH_PATH: "@@SQ_HashPath"
+  HASH_PATH: "@@SQ_HashPath",
+  REHYDRATED: "@@SQ_Rehydrated"
 };
 
 /*
@@ -96,4 +101,37 @@ function removeProps(obj, props) {
     }
   });
   return newObj;
+}
+
+/**
+ * Subscribe to an internal event.
+ *
+ * @param  {String}   eventName The name of the event.
+ * @param  {Function} handler   Handles the event.
+ *
+ * @return {undefined}
+ */
+function subscribe(eventName, handler) {
+  events[eventName] = events[eventName] || [];
+  events[eventName].push(handler);
+}
+
+/**
+ * Publish an internal event.
+ *
+ * @param  {String} eventName The name of the event.
+ * @param  {Any}    args      Passed to all event handlers.
+ *
+ * @return {undefined}
+ */
+function publish(eventName) {
+  for (var _len = arguments.length, args = Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
+    args[_key - 1] = arguments[_key];
+  }
+
+  if (events[eventName]) {
+    events[eventName].forEach(function (handler) {
+      return handler.apply(undefined, args);
+    });
+  }
 }

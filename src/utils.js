@@ -1,6 +1,8 @@
 const symbol1 = Symbol();
 const symbol2 = Symbol();
 
+const events = {};
+
 /**
  * Some internal system constants.
  *
@@ -14,7 +16,8 @@ export const INTERNALS = {
   DATA_PENDING : "@@SQ_DataPending",
   DATA_ERROR   : "@@SQ_DataError",
   DATA_SUCCESS : "@@SQ_DataSuccess",
-  HASH_PATH    : "@@SQ_HashPath"
+  HASH_PATH    : "@@SQ_HashPath",
+  REHYDRATED   : "@@SQ_Rehydrated"
 }
 
 /*
@@ -85,4 +88,31 @@ export function removeProps(obj, props) {
     }
   });
   return newObj;
+}
+
+/**
+ * Subscribe to an internal event.
+ *
+ * @param  {String}   eventName The name of the event.
+ * @param  {Function} handler   Handles the event.
+ *
+ * @return {undefined}
+ */
+export function subscribe(eventName, handler) {
+  events[eventName] = events[eventName] || [];
+  events[eventName].push(handler);
+}
+
+/**
+ * Publish an internal event.
+ *
+ * @param  {String} eventName The name of the event.
+ * @param  {Any}    args      Passed to all event handlers.
+ *
+ * @return {undefined}
+ */
+export function publish(eventName, ...args) {
+  if (events[eventName]) {
+    events[eventName].forEach(handler => handler(...args));
+  }
 }

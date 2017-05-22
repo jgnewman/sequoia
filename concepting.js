@@ -2,11 +2,11 @@ import { appplication, component } from 'sequoiajs';
 
 const Hello = component(kit => {
 
-  kit.infuseActions((rules, data) => ({
+  kit.infuseActions((rules, reqs) => ({
     updateQux: rules.app.UPDATE_FOO,
     updateFoo: payload => ({ type: rules.app.UPDATE_FOO, payload: payload }),
-    updateBar: payload => trigger => trigger(rules.app.updateFoo(payload)) // ??
-    updateBaz: payload => data.post('/api/conversations', payload)
+    updateBar: payload => actions => actions.updateFoo(payload),
+    updateBaz: payload => reqs.post('/api/conversations', payload)
   }))
 
   kit.infuseState(state => {

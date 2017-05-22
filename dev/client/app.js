@@ -201,6 +201,27 @@ var AppKit = function () {
 }();
 
 /**
+ * Determines whether or not to delay app rendering until after state
+ * rehydration.
+ *
+ * Rehydration occurs by default so we'll delay render if there's no config.
+ * By the same token, we WON'T delay render if rehydration is disabled.
+ * If the user has provided autopersist config and disabled the render delay, we won't delay.
+ * Otherwise, we will delay render.
+ *
+ * @param  {Object|undefined} config The user's application config.
+ *
+ * @return {Boolean} Whether or not to delay render
+ */
+
+function shouldDelayRender(config) {
+  if (!config) return true;
+  if (config.disableAutoPersist) return false;
+  if (config.autoPersist && config.autoPersist.disableRenderDelay) return false;
+  return true;
+}
+
+/**
  * Create a new application.
  * TODO: Don't allow this to be called inside the nested children of another application call.
  *
@@ -208,11 +229,19 @@ var AppKit = function () {
  *
  * @return {Component} A React component.
  */
-
 function application(generator) {
   var appCache = {};
   var Application = generator(new AppKit(appCache));
   var storeWrapper = new _store.StoreWrapper(appCache.config || {});
+
+  /*
+   * Create the function that will render the application.
+   * When we render, pass the storeWrapper down through the
+   * context tree.
+   */
+  var render = function render() {
+    _reactDom2.default.render(_react2.default.createElement(CustomProvider, _defineProperty({}, _utils.INTERNALS.STORE_REF, storeWrapper), _react2.default.createElement(Application, null)), appCache.target);
+  };
 
   /*
    * Register our implicit data namespace and rules.
@@ -249,10 +278,14 @@ function application(generator) {
   }
 
   /*
-   * When we render the application, make sure to pass the store wrapper down
-   * through the context tree.
+   * Render the application either immediately or after rehydration has
+   * completed.
    */
-  _reactDom2.default.render(_react2.default.createElement(CustomProvider, _defineProperty({}, _utils.INTERNALS.STORE_REF, storeWrapper), _react2.default.createElement(Application, null)), appCache.target);
+  if (shouldDelayRender(appCache.config)) {
+    (0, _utils.subscribe)(_utils.INTERNALS.REHYDRATED, render);
+  } else {
+    render();
+  }
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
@@ -916,14 +949,47 @@ function createReferencer() {
  * Generates a function that calls dispatch on a store.
  *
  * @param  {StoreWrapper} storeWrapper A storeWrapper instance.
+ * @param  {Object}       actionProps  The object ultimately containing all of the actions.
  * @param  {Function}     fn           A function that returns an action to be dispatched.
  *
  * @return {Function} The new dispatcher function.
  */
-function createDispatcher(storeWrapper, fn) {
+function createDispatcher(storeWrapper, actionProps, fn) {
+
+  /*
+   * This will be the actual action function.
+   */
   return function (payload) {
+
+    /*
+     * If the user gave us a function, we call it here. We end up with
+     * the type needed for the dispatch.
+     */
     var actionType = typeof fn === 'function' ? fn(payload) : fn;
-    return storeWrapper.dispatch(typeof actionType === 'string' ? { type: actionType } : actionType);
+
+    /*
+     * If we got a thunk, re-wrap it so that it access to the other
+     * actions as well.
+     */
+    if (typeof actionType === 'function') {
+      var origActionType = actionType;
+      actionType = function actionType(dispatch) {
+        return origActionType(actionProps);
+      };
+    }
+
+    /*
+     * If the action type was a string, make an object out of
+     * it. Otherwise, we assume it's already an object or a thunk.
+     */
+    if (typeof actionType === 'string') {
+      actionType = { type: actionType };
+    }
+
+    /*
+     * Dispatch the action type
+     */
+    return storeWrapper.dispatch(actionType);
   };
 }
 
@@ -991,7 +1057,7 @@ function component(generator) {
           cache.actionInfusers.forEach(function (infuser) {
             Object.assign(actionProps, newProps.actions || {}, // Merge any any actions passed in from the parent.
             (0, _utils.mapObject)(infuser(storeWrapper.actionNames, _data.requestsPackage), function (fn) {
-              return createDispatcher(storeWrapper, fn);
+              return createDispatcher(storeWrapper, actionProps, fn);
             }));
           });
 
@@ -2437,6 +2503,14 @@ var StoreWrapper = exports.StoreWrapper = function () {
         var _Object$assign;
 
         /*
+         * In case anything is listening for the reydrated event, this is where
+         * it happens.
+         */
+        setTimeout(function () {
+          (0, _utils.publish)(_utils.INTERNALS.REHYDRATED);
+        }, 0);
+
+        /*
          * When autoPersist attempts to rehydrate, clear out any existing
          * data and don't overwrite hash path stuff.
          */
@@ -2527,8 +2601,12 @@ exports.mapObject = mapObject;
 exports.createError = createError;
 exports.toggleSymbols = toggleSymbols;
 exports.removeProps = removeProps;
+exports.subscribe = subscribe;
+exports.publish = publish;
 var symbol1 = Symbol();
 var symbol2 = Symbol();
+
+var events = {};
 
 /**
  * Some internal system constants.
@@ -2543,7 +2621,8 @@ var INTERNALS = exports.INTERNALS = {
   DATA_PENDING: "@@SQ_DataPending",
   DATA_ERROR: "@@SQ_DataError",
   DATA_SUCCESS: "@@SQ_DataSuccess",
-  HASH_PATH: "@@SQ_HashPath"
+  HASH_PATH: "@@SQ_HashPath",
+  REHYDRATED: "@@SQ_Rehydrated"
 };
 
 /*
@@ -2618,6 +2697,39 @@ function removeProps(obj, props) {
   return newObj;
 }
 
+/**
+ * Subscribe to an internal event.
+ *
+ * @param  {String}   eventName The name of the event.
+ * @param  {Function} handler   Handles the event.
+ *
+ * @return {undefined}
+ */
+function subscribe(eventName, handler) {
+  events[eventName] = events[eventName] || [];
+  events[eventName].push(handler);
+}
+
+/**
+ * Publish an internal event.
+ *
+ * @param  {String} eventName The name of the event.
+ * @param  {Any}    args      Passed to all event handlers.
+ *
+ * @return {undefined}
+ */
+function publish(eventName) {
+  for (var _len = arguments.length, args = Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
+    args[_key - 1] = arguments[_key];
+  }
+
+  if (events[eventName]) {
+    events[eventName].forEach(function (handler) {
+      return handler.apply(undefined, args);
+    });
+  }
+}
+
 },{}],11:[function(require,module,exports){
 'use strict';
 
@@ -2639,7 +2751,7 @@ var Whatever = (0, _index.component)(function (kit) {
     };
   });
   return function (props) {
-    console.log(props);
+    // console.log(props);
     return React.createElement('div', null);
   };
 });
@@ -2660,7 +2772,7 @@ var Hello = (0, _index.component)(function (kit) {
     handleClick: function handleClick(evt, props) {
       console.log('handling event');
       console.log(props.ref.get('umbrellaDiv'));
-      //props.actions.updateGreeting('Goodbye, world!')
+      props.actions.dispatcher();
       //props.actions.example()
     }
   });
@@ -2668,6 +2780,11 @@ var Hello = (0, _index.component)(function (kit) {
   kit.infuseActions(function (rules, reqs) {
     return {
       updateGreeting: rules.section1.UPDATE_GREETING,
+      dispatcher: function dispatcher() {
+        return function (actions) {
+          actions.updateGreeting();
+        };
+      },
       example: function example() {
         return reqs.get('MY_DATA', '/');
       }
@@ -2716,9 +2833,10 @@ var App = (0, _index.application)(function (appKit) {
 
   appKit.config({
     stateMiddleware: [_reduxPromise2.default],
-    disableDevTools: false,
-    disableAutoPersist: true,
+    disableDevTools: false, // default
+    disableAutoPersist: false, // default
     autoPersist: {
+      disableRenderDelay: false, // default
       keyPrefix: 'testapp',
       done: function done() {}
     }
@@ -2752,185 +2870,18 @@ var App = (0, _index.application)(function (appKit) {
   };
 });
 
-// import {
-//   component,
-//   render,
-//   reduce,
-//   When,
-//   dataRequest,
-//   constants,
-//   createConstant,
-//   getConstantName,
-//   Switch,
-//   Otherwise,
-//   uuid
-// } from '../../../bin/index';
-// import promiseWare from 'redux-promise'
+var App2 = (0, _index.application)(function (appKit) {
 
-// /*
-//  * Create an app container component.
-//  */
-// const AppContainer = component(({ infuse, ensure, infuseActions, data }) => {
-//
-//   /*
-//    * Name all the props to infuse into the component.
-//    */
-//   infuse({
-//     actions: {
-//       myActions: {
-//         fooAAction: () => ({ type: constants.FOOA() }),
-//         fooBAction: () => ({ type: constants.FOOB() }),
-//         bazAction:  () => ({ type: constants.BAZ() })
-//       }
-//     },
-//     binders: {
-//       handlers: {
-//         fooHandler: function () {}
-//       }
-//     },
-//     modules: {
-//       mod: {
-//         fooMod: function () {}
-//       }
-//     },
-//     state: state => ({
-//       fooA: state.foo.a,
-//       fooB: state.foo.b,
-//       bar: state.bar
-//     })
-//   })
-//
-//   infuseActions('req', function () {
-//     return dataRequest({
-//       method: 'get',
-//       url: '/',
-//       id: constants.TEST_DATA()
-//     })
-//   })
-//
-//   /*
-//    * Ensure all of the correct prop types are being met.
-//    */
-//   ensure({
-//     fooA: ensure.number.isRequired,
-//     fooB: ensure.number.isRequired,
-//     bar: ensure.object.isRequired
-//   })
-//
-//   /*
-//    * Return the rendered, dumb component.
-//    */
-//   return props => {
-//     const { myActions, req } = props;
-//
-//     // setTimeout(() => {
-//     //   req()
-//     //   setTimeout(() => {
-//     //     console.log(data.value(constants.TEST_DATA()))
-//     //     myActions.fooAAction();
-//     //   }, 500)
-//     // }, 10000)
-//
-//     console.log('rendering', props)
-//     //console.log('---')
-//     return (
-//       <div>Hello, world!</div>
-//     )
-//   }
-//
-// })
-//
-// /*
-//  * Render our application and initialize the store ALL AT THE SAME TIME
-//  * Note that the Provider is handled implicitly.
-//  */
-// render(<AppContainer />, {
-//   target: '#app',
-//   constants: ['TEST_DATA', 'FOOA', 'FOOB', 'BAZ'],
-//   stateConfig: {
-//
-//     initialState: {
-//       foo: { a: 1, b: 1 },
-//       bar: { c: 1, d: 1 }
-//     },
-//
-//     reducers: {
-//       foo: reduce((initialState, update) => (state=initialState.foo, action) => {
-//         switch(action.type) {
-//           case constants.FOOA():
-//             return update(state, { a: state.a + 1})
-//           case constants.FOOB():
-//             return update(state, { b: state.b + 2})
-//           default:
-//             return state;
-//         }
-//       }),
-//       bar: reduce(initialState => (state=initialState.bar, action) => state)
-//     },
-//
-//     // Optional config
-//     middleware: [promiseWare],
-//     disableDevTools: false,
-//     disableAutoPersist: true,
-//     autoPersistConfig: {
-//       keyPrefix: 'testapp'
-//     },
-//     autoPersistDone: function () {}
-//   }
-// })
+  appKit.renderIn('#app2');
 
-
-// console.log(uuid())
-// const App = component(() => {
-//   return () => <div>Hello, app 1!</div>
-// })
-// render(<App />, { target: '#app' })
-//
-// const App2 = component(() => {
-//   return () => <div>Hello, app 2!</div>
-// })
-// render(<App2 />, { target: '#app2' })
-
-
-// const Hello = component(tools => props => {
-//   return <div>Hello, world!</div>
-// })
-// const Goodbye = component(tools => props => <div>Goodbye, cruel world!</div>)
-// const Outer = component(tools => props => {
-//   return (
-//     <Switch>
-//       <When subHash="/foo" component={Hello} />
-//       <Otherwise component={Goodbye} />
-//     </Switch>
-//   )
-// })
-// render(<Outer />, { target: '#app' })
-
-
-// render(<When ok={true}><div>Hello</div></When>, { target: '#app' })
-
-
-// const Hello = component(({ referencer }) => {
-//   return () => {
-//     const ref = referencer()
-//     return (
-//       <div>
-//         <div className={uuid()} ref={ref.capture('myDiv')}>Hello</div>
-//         <div onClick={() => ref.getAsync('myDiv', 300, myDiv => console.log(myDiv))}>Click Me</div>
-//       </div>
-//     )
-//   }
-// })
-//
-// render(
-//   <div>
-//     <Hello />
-//     <Hello />
-//   </div>,
-//   {
-//     target: '#app2'
-//   }
-// )
+  return function () {
+    return React.createElement(
+      'div',
+      null,
+      'This is a second app on the same page!'
+    );
+  };
+});
 
 },{"../../../bin/index":6,"redux-promise":268}],12:[function(require,module,exports){
 module.exports = require('./lib/axios');
