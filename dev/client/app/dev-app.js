@@ -4,10 +4,10 @@ import {
   collect,
   Switch,
   When,
-  Otherwise
+  Otherwise,
+  uuid
 } from '../../../bin/index';
 import promiseWare from 'redux-promise'
-
 
 const Whatever = component(kit => {
   kit.infuseHandlers({

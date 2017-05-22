@@ -4,15 +4,6 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
-var _uuid = require('uuid');
-
-Object.defineProperty(exports, 'uuid', {
-  enumerable: true,
-  get: function get() {
-    return _uuid.v4;
-  }
-});
-
 var _premade = require('./premade');
 
 Object.keys(_premade).forEach(function (key) {
@@ -34,15 +25,6 @@ Object.defineProperty(exports, 'collect', {
   }
 });
 
-var _constants = require('./constants');
-
-Object.defineProperty(exports, 'constants', {
-  enumerable: true,
-  get: function get() {
-    return _constants.constants;
-  }
-});
-
 var _component = require('./component');
 
 Object.defineProperty(exports, 'component', {
@@ -58,5 +40,20 @@ Object.defineProperty(exports, 'application', {
   enumerable: true,
   get: function get() {
     return _application.application;
+  }
+});
+
+var _constants = require('./constants');
+
+Object.defineProperty(exports, 'constants', {
+  enumerable: true,
+  get: function get() {
+    return _constants.constants;
+  }
+});
+Object.defineProperty(exports, 'uuid', {
+  enumerable: true,
+  get: function get() {
+    return _constants.uuid;
   }
 });

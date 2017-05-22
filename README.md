@@ -346,6 +346,14 @@ constants.FOO() // <- Symbol
 
 Constants themselves are Symbols and are retrievable in the form of a function. This way if you try to reference a constant and spell something wrong, you'll get an error rather than an unexpected result due to an undefined value.
 
+On the topic of values that shouldn't ever be equal to other values, sometimes you'll need to generate unique identifiers. In these cases, it's worth noting that Sequoia comes with a nice UUID generator.
+
+```javascript
+import { uuid } from 'sequoiajs';
+
+console.log(uuid()) // <- '5dd8a17d-84f3-46d8-a1ac-8fa186155d77'
+```
+
 
 > Everything after this line is outdated. Need to finish updating the readme to reflect the new paradigm.
 

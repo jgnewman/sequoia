@@ -1085,11 +1085,18 @@ function component(generator) {
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
+exports.uuid = undefined;
 exports.constants = constants;
 
 var _utils = require('./utils');
 
 var _uuid = require('uuid');
+
+var _uuid2 = _interopRequireDefault(_uuid);
+
+function _interopRequireDefault(obj) {
+  return obj && obj.__esModule ? obj : { default: obj };
+}
 
 var registry = {};
 
@@ -1107,7 +1114,7 @@ var registry = {};
 function constants(name) {
 
   if (!arguments.length) {
-    name = (0, _uuid.uuid)();
+    name = (0, _uuid2.default)();
   }
 
   if (typeof name !== 'string') {
@@ -1124,6 +1131,8 @@ function constants(name) {
   };
   return registry[name];
 }
+
+exports.uuid = _uuid2.default;
 
 },{"./utils":10,"uuid":280}],5:[function(require,module,exports){
 'use strict';
@@ -1629,15 +1638,6 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
-var _uuid = require('uuid');
-
-Object.defineProperty(exports, 'uuid', {
-  enumerable: true,
-  get: function get() {
-    return _uuid.v4;
-  }
-});
-
 var _premade = require('./premade');
 
 Object.keys(_premade).forEach(function (key) {
@@ -1659,15 +1659,6 @@ Object.defineProperty(exports, 'collect', {
   }
 });
 
-var _constants = require('./constants');
-
-Object.defineProperty(exports, 'constants', {
-  enumerable: true,
-  get: function get() {
-    return _constants.constants;
-  }
-});
-
 var _component = require('./component');
 
 Object.defineProperty(exports, 'component', {
@@ -1686,7 +1677,22 @@ Object.defineProperty(exports, 'application', {
   }
 });
 
-},{"./application":1,"./collect":2,"./component":3,"./constants":4,"./premade":7,"uuid":280}],7:[function(require,module,exports){
+var _constants = require('./constants');
+
+Object.defineProperty(exports, 'constants', {
+  enumerable: true,
+  get: function get() {
+    return _constants.constants;
+  }
+});
+Object.defineProperty(exports, 'uuid', {
+  enumerable: true,
+  get: function get() {
+    return _constants.uuid;
+  }
+});
+
+},{"./application":1,"./collect":2,"./component":3,"./constants":4,"./premade":7}],7:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {

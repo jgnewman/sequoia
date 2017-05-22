@@ -3,11 +3,16 @@
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
+exports.uuid = undefined;
 exports.constants = constants;
 
 var _utils = require('./utils');
 
 var _uuid = require('uuid');
+
+var _uuid2 = _interopRequireDefault(_uuid);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 var registry = {};
 
@@ -25,7 +30,7 @@ var registry = {};
 function constants(name) {
 
   if (!arguments.length) {
-    name = (0, _uuid.uuid)();
+    name = (0, _uuid2.default)();
   }
 
   if (typeof name !== 'string') {
@@ -42,3 +47,5 @@ function constants(name) {
   };
   return registry[name];
 }
+
+exports.uuid = _uuid2.default;

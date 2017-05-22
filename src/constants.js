@@ -1,5 +1,5 @@
 import { createError } from './utils';
-import { uuid } from 'uuid';
+import uuid from 'uuid';
 
 const registry = {};
 
@@ -32,3 +32,5 @@ export function constants(name) {
   constants[name] = () => registry[name];
   return registry[name];
 }
+
+export { uuid };
