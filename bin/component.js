@@ -201,13 +201,13 @@ function createDispatcher(storeWrapper, actionProps, fn) {
   /*
    * This will be the actual action function.
    */
-  return function (payload) {
+  return function () {
 
     /*
      * If the user gave us a function, we call it here. We end up with
      * the type needed for the dispatch.
      */
-    var actionType = typeof fn === 'function' ? fn(payload) : fn;
+    var actionType = typeof fn === 'function' ? fn.apply(undefined, arguments) : fn;
 
     /*
      * If we got a thunk, re-wrap it so that it access to the other

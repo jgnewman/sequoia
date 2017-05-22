@@ -91,6 +91,14 @@ v0.1.0
   - [x] by default we delay render of app until rehydration completes
 - [x] finish rewriting readme
 - [x] test the various scenarios we were already testing
-- [ ] publish to npm
+- [x] publish to npm
 - [ ] update todomvc
 - [ ] update docs site
+
+v0.1.1
+
+- [x] fix a bug where actions could only take one value
+
+v0.1.2
+
+- [ ] better handlers. can we choose what gets passed in?
