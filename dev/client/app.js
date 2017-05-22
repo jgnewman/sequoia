@@ -989,7 +989,8 @@ function component(generator) {
           var actionProps = {};
 
           cache.actionInfusers.forEach(function (infuser) {
-            Object.assign(actionProps, (0, _utils.mapObject)(infuser(storeWrapper.actionNames, _data.requestsPackage), function (fn) {
+            Object.assign(actionProps, newProps.actions || {}, // Merge any any actions passed in from the parent.
+            (0, _utils.mapObject)(infuser(storeWrapper.actionNames, _data.requestsPackage), function (fn) {
               return createDispatcher(storeWrapper, fn);
             }));
           });
@@ -1003,12 +1004,13 @@ function component(generator) {
          * the event object and the current props.
          */
         if (cache.handlers) {
-          var handlers = (0, _utils.mapObject)(cache.handlers, function (val, key) {
+          var newHandlers = (0, _utils.mapObject)(cache.handlers, function (val, key) {
             return function (evt) {
               return val(evt, newProps);
             };
           });
-          newProps = Object.assign({}, newProps, { handlers: handlers });
+          var mergedHandlers = newProps.handlers ? Object.assign({}, newProps.handlers, newHandlers) : newHandlers;
+          newProps = Object.assign({}, newProps, { handlers: mergedHandlers });
         }
 
         return renderFn(newProps);
@@ -1087,6 +1089,8 @@ exports.constants = constants;
 
 var _utils = require('./utils');
 
+var _uuid = require('uuid');
+
 var registry = {};
 
 /**
@@ -1101,6 +1105,10 @@ var registry = {};
  * @return {Symbol} The symbol for the new constant.
  */
 function constants(name) {
+
+  if (!arguments.length) {
+    name = (0, _uuid.uuid)();
+  }
 
   if (typeof name !== 'string') {
     throw (0, _utils.createError)('Constants must be built from strings.');
@@ -1117,7 +1125,7 @@ function constants(name) {
   return registry[name];
 }
 
-},{"./utils":10}],5:[function(require,module,exports){
+},{"./utils":10,"uuid":280}],5:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -2615,6 +2623,21 @@ var _reduxPromise2 = _interopRequireDefault(_reduxPromise);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
+var Whatever = (0, _index.component)(function (kit) {
+  kit.infuseHandlers({
+    whatever: function whatever() {}
+  });
+  kit.infuseActions(function (rules) {
+    return {
+      whatever: rules.section1.UPDATE_GREETING
+    };
+  });
+  return function (props) {
+    console.log(props);
+    return React.createElement('div', null);
+  };
+});
+
 var Hello = (0, _index.component)(function (kit) {
 
   kit.ensure({
@@ -2675,7 +2698,8 @@ var Hello = (0, _index.component)(function (kit) {
             'Nothing to see here, boss.'
           )
         )
-      )
+      ),
+      React.createElement(Whatever, { handlers: props.handlers, actions: props.actions })
     );
   };
 });

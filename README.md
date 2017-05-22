@@ -274,9 +274,9 @@ const Clickable = component(kit => {
 
 In this example, we create a new prop called `handlers` containing as many functions as we want to define. These functions can be attached to events in our JSX and, when called, they will be handed both the event object itself and the full collection of all of the props available to the component where they were defined.
 
-### Data Requests
-
 ### Routing && Decisions
+
+### Data Requests
 
 ### Collections On-the-Fly
 
@@ -324,7 +324,27 @@ For more info on collection methods, check out the [docs](https://sequoiajs.com/
 
 ### Constants
 
+Sometimes it can be nice to reference a set of unchanging values, rather than identifying things with strings all over the place and risking weird bugs resulting from typos.
 
+To assist you with a scalable application architecture, Sequoia provides you with a nice way to create and retrieve constants – in other words, Symbol instances that never change, that produce errors if you try to reference them incorrectly, and can be used just about anywhere a string can be used in Sequoia.
+
+Here's how you'd create a constant:
+
+```javascript
+import { constants } from 'sequoiajs';
+
+const FOO = constants('FOO');
+```
+
+And here's how you'd reference that same constant after you create it:
+
+```javascript
+import { constants } from 'sequoiajs';
+
+constants.FOO() // <- Symbol
+```
+
+Constants themselves are Symbols and are retrievable in the form of a function. This way if you try to reference a constant and spell something wrong, you'll get an error rather than an unexpected result due to an undefined value.
 
 
 > Everything after this line is outdated. Need to finish updating the readme to reflect the new paradigm.

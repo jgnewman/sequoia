@@ -264,7 +264,8 @@ function component(generator) {
           var actionProps = {};
 
           cache.actionInfusers.forEach(function (infuser) {
-            Object.assign(actionProps, (0, _utils.mapObject)(infuser(storeWrapper.actionNames, _data.requestsPackage), function (fn) {
+            Object.assign(actionProps, newProps.actions || {}, // Merge any any actions passed in from the parent.
+            (0, _utils.mapObject)(infuser(storeWrapper.actionNames, _data.requestsPackage), function (fn) {
               return createDispatcher(storeWrapper, fn);
             }));
           });
@@ -278,12 +279,13 @@ function component(generator) {
          * the event object and the current props.
          */
         if (cache.handlers) {
-          var handlers = (0, _utils.mapObject)(cache.handlers, function (val, key) {
+          var newHandlers = (0, _utils.mapObject)(cache.handlers, function (val, key) {
             return function (evt) {
               return val(evt, newProps);
             };
           });
-          newProps = Object.assign({}, newProps, { handlers: handlers });
+          var mergedHandlers = newProps.handlers ? Object.assign({}, newProps.handlers, newHandlers) : newHandlers;
+          newProps = Object.assign({}, newProps, { handlers: mergedHandlers });
         }
 
         return renderFn(newProps);

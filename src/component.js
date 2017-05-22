@@ -207,6 +207,7 @@ export function component(generator) {
         cache.actionInfusers.forEach(infuser => {
           Object.assign(
             actionProps,
+            newProps.actions || {}, // Merge any any actions passed in from the parent.
             mapObject(
               infuser(storeWrapper.actionNames, requestsPackage),
               fn => createDispatcher(storeWrapper, fn)
@@ -223,10 +224,11 @@ export function component(generator) {
        * the event object and the current props.
        */
       if (cache.handlers) {
-        const handlers = mapObject(cache.handlers, (val, key) => {
+        const newHandlers = mapObject(cache.handlers, (val, key) => {
           return evt => val(evt, newProps);
         });
-        newProps = Object.assign({}, newProps, { handlers: handlers });
+        const mergedHandlers = newProps.handlers ? Object.assign({}, newProps.handlers, newHandlers) : newHandlers;
+        newProps = Object.assign({}, newProps, { handlers: mergedHandlers });
       }
 
       return renderFn(newProps);

@@ -7,6 +7,8 @@ exports.constants = constants;
 
 var _utils = require('./utils');
 
+var _uuid = require('uuid');
+
 var registry = {};
 
 /**
@@ -21,6 +23,10 @@ var registry = {};
  * @return {Symbol} The symbol for the new constant.
  */
 function constants(name) {
+
+  if (!arguments.length) {
+    name = (0, _uuid.uuid)();
+  }
 
   if (typeof name !== 'string') {
     throw (0, _utils.createError)('Constants must be built from strings.');

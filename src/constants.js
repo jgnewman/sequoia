@@ -1,4 +1,5 @@
 import { createError } from './utils';
+import { uuid } from 'uuid';
 
 const registry = {};
 
@@ -14,6 +15,10 @@ const registry = {};
  * @return {Symbol} The symbol for the new constant.
  */
 export function constants(name) {
+
+  if (!arguments.length) {
+    name = uuid();
+  }
 
   if (typeof name !== 'string') {
     throw createError(`Constants must be built from strings.`);

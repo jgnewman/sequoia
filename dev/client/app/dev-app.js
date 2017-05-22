@@ -9,6 +9,19 @@ import {
 import promiseWare from 'redux-promise'
 
 
+const Whatever = component(kit => {
+  kit.infuseHandlers({
+    whatever: () => {},
+  })
+  kit.infuseActions(rules => ({
+    whatever: rules.section1.UPDATE_GREETING
+  }))
+  return props => {
+    console.log(props);
+    return <div></div>
+  }
+})
+
 const Hello = component(kit => {
 
   kit.ensure({
@@ -45,6 +58,7 @@ const Hello = component(kit => {
             <div>Nothing to see here, boss.</div>
           </Otherwise>
         </Switch>
+        <Whatever handlers={props.handlers} actions={props.actions}/>
       </div>
     )
   }
