@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-import { INTERNALS } from './utils';
+import { INTERNALS, merge } from './utils';
 import { secretStoreKey } from './store';
 
 /*
@@ -112,7 +112,7 @@ function performRestfulAction(settings, extras, dispatch) {
  * @return {Function} Will be triggered by data actions.
  */
 export function createRestRule() {
-  return (update, substate, payload) => {
+  return (substate, payload) => {
 
     const id      = payload.id;
     const subrule = payload.subrule;
@@ -123,7 +123,7 @@ export function createRestRule() {
     switch (subrule) {
 
       case INTERNALS.DATA_DEFAULT:
-        return update(substate, {
+        return merge(substate, {
           [id]: {
             ok           : false,
             status       : null,
@@ -135,7 +135,7 @@ export function createRestRule() {
 
       case INTERNALS.DATA_PENDING:
         const prevState = substate[id] || {};
-        return update(substate, {
+        return merge(substate, {
           [id]: {
             ok           : false,
             status       : prevState.status       || null,
@@ -147,7 +147,7 @@ export function createRestRule() {
 
       case INTERNALS.DATA_ERROR:
         throw new Error()
-        return update(substate, {
+        return merge(substate, {
           [id]: {
             ok           : false,
             status       : status,
@@ -158,7 +158,7 @@ export function createRestRule() {
         })
 
       case INTERNALS.DATA_SUCCESS:
-        return update(substate, {
+        return merge(substate, {
           [id]: {
             ok           : true,
             status       : status,
@@ -169,7 +169,7 @@ export function createRestRule() {
         })
 
       default:
-        return update(substate);
+        return merge(substate);
 
     }
   }

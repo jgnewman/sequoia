@@ -283,8 +283,8 @@ function createLocation() {
  * Creates a reducer for modifying location information.
  */
 function createHashRule() {
-  return function (update, state) {
-    update(state, currentLocation);
+  return function (state) {
+    return (0, _utils.merge)(state, currentLocation);
   };
 }
 

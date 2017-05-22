@@ -256,7 +256,9 @@ export function component(generator) {
        */
       if (cache.handlers) {
         const newHandlers = mapObject(cache.handlers, (val, key) => {
-          return evt => val(evt, newProps);
+          const handler = evt => val(evt, newProps);
+          handler.with = (...args) => evt => val(evt, newProps, ...args);
+          return handler;
         });
         const mergedHandlers = newProps.handlers ? Object.assign({}, newProps.handlers, newHandlers) : newHandlers;
         newProps = Object.assign({}, newProps, { handlers: mergedHandlers });

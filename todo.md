@@ -92,8 +92,7 @@ v0.1.0
 - [x] finish rewriting readme
 - [x] test the various scenarios we were already testing
 - [x] publish to npm
-- [ ] update todomvc
-- [ ] update docs site
+- [x] update todomvc
 
 v0.1.1
 
@@ -101,4 +100,8 @@ v0.1.1
 
 v0.1.2
 
-- [ ] better handlers. can we choose what gets passed in?
+- [x] better handlers. can we choose what gets passed in?
+- [x] the whole (update, state) => update(state) thing is overkill. just return the update.
+  - [x] provide a nice `merge` function for anyone not using ES6
+  - [x] update readme
+- [ ] update docs site (in-progress)

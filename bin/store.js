@@ -186,21 +186,13 @@ var StoreWrapper = exports.StoreWrapper = function () {
       if (rule) {
 
         /*
-         * Create a function that can update the substate.
+         * Call the rule's reducer with the current substate and action.payload.
+         * Afterward, attach the new substate to the full state.
          */
-        var newSubstate = {};
-        var updater = function updater(substate, extensions) {
-          newSubstate[rule.substate] = Object.assign({}, substate || {}, extensions || {});
-        };
-
-        /*
-         * Call the rule's reducer with the updater, the current substate, and
-         * the action payload. Afterward, attach the new substate to the full state.
-         */
-        rule.reducer(updater, state[rule.substate] || {}, action.payload);
-        return Object.assign({}, state, newSubstate);
+        var newSubstate = rule.reducer(state[rule.substate] || {}, action.payload);
+        return Object.assign({}, state, _defineProperty({}, rule.substate, newSubstate));
       } else if (action.type === _constants.REHYDRATE) {
-        var _Object$assign;
+        var _Object$assign2;
 
         /*
          * In case anything is listening for the reydrated event, this is where
@@ -214,7 +206,7 @@ var StoreWrapper = exports.StoreWrapper = function () {
          * When autoPersist attempts to rehydrate, clear out any existing
          * data and don't overwrite hash path stuff.
          */
-        return Object.assign({}, state, (_Object$assign = {}, _defineProperty(_Object$assign, _utils.INTERNALS.DATA_REF, {}), _defineProperty(_Object$assign, _utils.INTERNALS.HASH_PATH, Object.assign({}, state[_utils.INTERNALS.HASH_PATH])), _Object$assign));
+        return Object.assign({}, state, (_Object$assign2 = {}, _defineProperty(_Object$assign2, _utils.INTERNALS.DATA_REF, {}), _defineProperty(_Object$assign2, _utils.INTERNALS.HASH_PATH, Object.assign({}, state[_utils.INTERNALS.HASH_PATH])), _Object$assign2));
 
         /*
          * If no rule for the action type exists, return the state.

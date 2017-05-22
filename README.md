@@ -122,7 +122,7 @@ application(appKit => {
 
     // The DEFAULT rule defines the initial shape of this
     // state namespace.
-    DEFAULT: (update, namespace) => update(namespace, {
+    DEFAULT: currentNamespace => Object.assign({}, currentNamespace, {
       text: 'Hello, world!'
     })
   })
@@ -137,6 +137,8 @@ In this example, the application component doesn't need to pass a prop down to t
 
 When we create the application, we'll create a namespace on our state called "app" and define rules for how it can be transformed. The `DEFAULT` rule is a special rule that is automatically triggered when the app loads and hydrates our namespace with default values.
 
+Notice that every rule we create needs to return a **new** copy of the state namespace being updated.
+
 #### Modifying State
 
 Now that we know how to set up default values on a state, and also how to get state values into components, let's take a look at updating values on the state. Remember, by updating a value on the state, any component using that value will automatically update to reflect the change.
@@ -146,13 +148,13 @@ If we want to update the state, we'll need to define a rule for how that can hap
 ```jsx
 appKit.createRules('app', {
 
-  DEFAULT: (update, namespace) => update(namespace, {
+  DEFAULT: namespace => Object.assign({}, namespace, {
     text: 'Hello, world!'
   }),
 
   // When this new rule is triggered, we expect it to be triggered with
   // a "payload" – in this case, a new value for the `text` property.
-  UPDATE_TEXT: (update, namespace, payload) => update(namespace, {
+  UPDATE_TEXT: (namespace, payload) => Object.assign({}, namespace, {
     text: payload
   })
 })
@@ -275,6 +277,27 @@ const Clickable = component(kit => {
 ```
 
 In this example, we create a new prop called `handlers` containing as many functions as we want to define. These functions can be attached to events in our JSX and, when called, they will be handed both the event object itself and the full collection of all of the props available to the component where they were defined.
+
+To add just one more layer of icing, Sequoia allows you to add _even more_ values to your handler functions. For example:
+
+```jsx
+const Clickable = component(kit => {
+
+  kit.infuseHandlers({
+    handleClick: (evt, props, extraVal1, extraVal2) => {
+      evt.preventDefault();
+      console.log(extraVal1, extraVal2); // <- 'foo', 'bar'
+      props.actions.foo();
+    }
+  })
+
+  return props => (
+    <a onClick={props.handlers.handleClick.with('foo', 'bar')}>Click me!</a>
+  )
+})
+```
+
+In this example, the `with` function allows you to add as many values as you'd like to a click handler _in addition to_ the event and the component props.
 
 ### Decisions & Routing
 

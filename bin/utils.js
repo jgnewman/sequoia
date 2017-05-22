@@ -9,6 +9,7 @@ exports.toggleSymbols = toggleSymbols;
 exports.removeProps = removeProps;
 exports.subscribe = subscribe;
 exports.publish = publish;
+exports.merge = merge;
 var symbol1 = Symbol();
 var symbol2 = Symbol();
 
@@ -134,4 +135,19 @@ function publish(eventName) {
       return handler.apply(undefined, args);
     });
   }
+}
+
+/**
+ * Wraps Object.assign to assign multiple props into a new object.
+ *
+ * @param  {Objects} objects The objects to be merged together.
+ *
+ * @return {Object}
+ */
+function merge() {
+  for (var _len2 = arguments.length, objects = Array(_len2), _key2 = 0; _key2 < _len2; _key2++) {
+    objects[_key2] = arguments[_key2];
+  }
+
+  return Object.assign.apply(Object, [{}].concat(objects));
 }

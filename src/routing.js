@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 
-import { INTERNALS, createError, removeProps, win } from './utils';
+import { INTERNALS, createError, removeProps, win, merge } from './utils';
 import { onCreateStore } from './store';
 
 const EXCLUSIVE_PROPS = [
@@ -296,8 +296,8 @@ export function createLocation() {
  * Creates a reducer for modifying location information.
  */
 export function createHashRule() {
-  return (update, state) => {
-    update(state, currentLocation)
+  return state => {
+    return merge(state, currentLocation)
   }
 }
 

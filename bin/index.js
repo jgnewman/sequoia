@@ -16,6 +16,15 @@ Object.keys(_premade).forEach(function (key) {
   });
 });
 
+var _utils = require('./utils');
+
+Object.defineProperty(exports, 'merge', {
+  enumerable: true,
+  get: function get() {
+    return _utils.merge;
+  }
+});
+
 var _collect = require('./collect');
 
 Object.defineProperty(exports, 'collect', {

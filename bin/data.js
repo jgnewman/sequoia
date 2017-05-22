@@ -136,7 +136,7 @@ function performRestfulAction(settings, extras, dispatch) {
  * @return {Function} Will be triggered by data actions.
  */
 function createRestRule() {
-  return function (update, substate, payload) {
+  return function (substate, payload) {
 
     var id = payload.id;
     var subrule = payload.subrule;
@@ -147,7 +147,7 @@ function createRestRule() {
     switch (subrule) {
 
       case _utils.INTERNALS.DATA_DEFAULT:
-        return update(substate, _defineProperty({}, id, {
+        return (0, _utils.merge)(substate, _defineProperty({}, id, {
           ok: false,
           status: null,
           errorMessage: null,
@@ -157,7 +157,7 @@ function createRestRule() {
 
       case _utils.INTERNALS.DATA_PENDING:
         var prevState = substate[id] || {};
-        return update(substate, _defineProperty({}, id, {
+        return (0, _utils.merge)(substate, _defineProperty({}, id, {
           ok: false,
           status: prevState.status || null,
           errorMessage: prevState.errorMessage || null,
@@ -167,7 +167,7 @@ function createRestRule() {
 
       case _utils.INTERNALS.DATA_ERROR:
         throw new Error();
-        return update(substate, _defineProperty({}, id, {
+        return (0, _utils.merge)(substate, _defineProperty({}, id, {
           ok: false,
           status: status,
           errorMessage: errMsg,
@@ -176,7 +176,7 @@ function createRestRule() {
         }));
 
       case _utils.INTERNALS.DATA_SUCCESS:
-        return update(substate, _defineProperty({}, id, {
+        return (0, _utils.merge)(substate, _defineProperty({}, id, {
           ok: true,
           status: status,
           errorMessage: null,
@@ -185,7 +185,7 @@ function createRestRule() {
         }));
 
       default:
-        return update(substate);
+        return (0, _utils.merge)(substate);
 
     }
   };

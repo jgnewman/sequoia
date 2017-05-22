@@ -116,3 +116,14 @@ export function publish(eventName, ...args) {
     events[eventName].forEach(handler => handler(...args));
   }
 }
+
+/**
+ * Wraps Object.assign to assign multiple props into a new object.
+ *
+ * @param  {Objects} objects The objects to be merged together.
+ *
+ * @return {Object}
+ */
+export function merge(...objects) {
+  return Object.assign({}, ...objects);
+}

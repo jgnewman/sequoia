@@ -131,19 +131,11 @@ export class StoreWrapper {
     if (rule) {
 
       /*
-       * Create a function that can update the substate.
+       * Call the rule's reducer with the current substate and action.payload.
+       * Afterward, attach the new substate to the full state.
        */
-      let newSubstate = {};
-      const updater = (substate, extensions) => {
-        newSubstate[rule.substate] = Object.assign({}, substate || {}, extensions || {});
-      }
-
-      /*
-       * Call the rule's reducer with the updater, the current substate, and
-       * the action payload. Afterward, attach the new substate to the full state.
-       */
-      rule.reducer(updater, state[rule.substate] || {}, action.payload);
-      return Object.assign({}, state, newSubstate);
+      const newSubstate = rule.reducer(state[rule.substate] || {}, action.payload);
+      return Object.assign({}, state, { [rule.substate]: newSubstate });
 
     } else if (action.type === REHYDRATE) {
 

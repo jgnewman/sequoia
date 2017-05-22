@@ -959,13 +959,13 @@ function createDispatcher(storeWrapper, actionProps, fn) {
   /*
    * This will be the actual action function.
    */
-  return function (payload) {
+  return function () {
 
     /*
      * If the user gave us a function, we call it here. We end up with
      * the type needed for the dispatch.
      */
-    var actionType = typeof fn === 'function' ? fn(payload) : fn;
+    var actionType = typeof fn === 'function' ? fn.apply(undefined, arguments) : fn;
 
     /*
      * If we got a thunk, re-wrap it so that it access to the other
@@ -1071,9 +1071,19 @@ function component(generator) {
          */
         if (cache.handlers) {
           var newHandlers = (0, _utils.mapObject)(cache.handlers, function (val, key) {
-            return function (evt) {
+            var handler = function handler(evt) {
               return val(evt, newProps);
             };
+            handler.with = function () {
+              for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
+                args[_key] = arguments[_key];
+              }
+
+              return function (evt) {
+                return val.apply(undefined, [evt, newProps].concat(args));
+              };
+            };
+            return handler;
           });
           var mergedHandlers = newProps.handlers ? Object.assign({}, newProps.handlers, newHandlers) : newHandlers;
           newProps = Object.assign({}, newProps, { handlers: mergedHandlers });
@@ -1359,7 +1369,7 @@ function performRestfulAction(settings, extras, dispatch) {
  * @return {Function} Will be triggered by data actions.
  */
 function createRestRule() {
-  return function (update, substate, payload) {
+  return function (substate, payload) {
 
     var id = payload.id;
     var subrule = payload.subrule;
@@ -1370,7 +1380,7 @@ function createRestRule() {
     switch (subrule) {
 
       case _utils.INTERNALS.DATA_DEFAULT:
-        return update(substate, _defineProperty({}, id, {
+        return (0, _utils.merge)(substate, _defineProperty({}, id, {
           ok: false,
           status: null,
           errorMessage: null,
@@ -1380,7 +1390,7 @@ function createRestRule() {
 
       case _utils.INTERNALS.DATA_PENDING:
         var prevState = substate[id] || {};
-        return update(substate, _defineProperty({}, id, {
+        return (0, _utils.merge)(substate, _defineProperty({}, id, {
           ok: false,
           status: prevState.status || null,
           errorMessage: prevState.errorMessage || null,
@@ -1390,7 +1400,7 @@ function createRestRule() {
 
       case _utils.INTERNALS.DATA_ERROR:
         throw new Error();
-        return update(substate, _defineProperty({}, id, {
+        return (0, _utils.merge)(substate, _defineProperty({}, id, {
           ok: false,
           status: status,
           errorMessage: errMsg,
@@ -1399,7 +1409,7 @@ function createRestRule() {
         }));
 
       case _utils.INTERNALS.DATA_SUCCESS:
-        return update(substate, _defineProperty({}, id, {
+        return (0, _utils.merge)(substate, _defineProperty({}, id, {
           ok: true,
           status: status,
           errorMessage: null,
@@ -1408,7 +1418,7 @@ function createRestRule() {
         }));
 
       default:
-        return update(substate);
+        return (0, _utils.merge)(substate);
 
     }
   };
@@ -1716,6 +1726,15 @@ Object.keys(_premade).forEach(function (key) {
   });
 });
 
+var _utils = require('./utils');
+
+Object.defineProperty(exports, 'merge', {
+  enumerable: true,
+  get: function get() {
+    return _utils.merge;
+  }
+});
+
 var _collect = require('./collect');
 
 Object.defineProperty(exports, 'collect', {
@@ -1758,7 +1777,7 @@ Object.defineProperty(exports, 'uuid', {
   }
 });
 
-},{"./application":1,"./collect":2,"./component":3,"./constants":4,"./premade":7}],7:[function(require,module,exports){
+},{"./application":1,"./collect":2,"./component":3,"./constants":4,"./premade":7,"./utils":10}],7:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -2177,8 +2196,8 @@ function createLocation() {
  * Creates a reducer for modifying location information.
  */
 function createHashRule() {
-  return function (update, state) {
-    update(state, currentLocation);
+  return function (state) {
+    return (0, _utils.merge)(state, currentLocation);
   };
 }
 
@@ -2486,21 +2505,13 @@ var StoreWrapper = exports.StoreWrapper = function () {
       if (rule) {
 
         /*
-         * Create a function that can update the substate.
+         * Call the rule's reducer with the current substate and action.payload.
+         * Afterward, attach the new substate to the full state.
          */
-        var newSubstate = {};
-        var updater = function updater(substate, extensions) {
-          newSubstate[rule.substate] = Object.assign({}, substate || {}, extensions || {});
-        };
-
-        /*
-         * Call the rule's reducer with the updater, the current substate, and
-         * the action payload. Afterward, attach the new substate to the full state.
-         */
-        rule.reducer(updater, state[rule.substate] || {}, action.payload);
-        return Object.assign({}, state, newSubstate);
+        var newSubstate = rule.reducer(state[rule.substate] || {}, action.payload);
+        return Object.assign({}, state, _defineProperty({}, rule.substate, newSubstate));
       } else if (action.type === _constants.REHYDRATE) {
-        var _Object$assign;
+        var _Object$assign2;
 
         /*
          * In case anything is listening for the reydrated event, this is where
@@ -2514,7 +2525,7 @@ var StoreWrapper = exports.StoreWrapper = function () {
          * When autoPersist attempts to rehydrate, clear out any existing
          * data and don't overwrite hash path stuff.
          */
-        return Object.assign({}, state, (_Object$assign = {}, _defineProperty(_Object$assign, _utils.INTERNALS.DATA_REF, {}), _defineProperty(_Object$assign, _utils.INTERNALS.HASH_PATH, Object.assign({}, state[_utils.INTERNALS.HASH_PATH])), _Object$assign));
+        return Object.assign({}, state, (_Object$assign2 = {}, _defineProperty(_Object$assign2, _utils.INTERNALS.DATA_REF, {}), _defineProperty(_Object$assign2, _utils.INTERNALS.HASH_PATH, Object.assign({}, state[_utils.INTERNALS.HASH_PATH])), _Object$assign2));
 
         /*
          * If no rule for the action type exists, return the state.
@@ -2603,6 +2614,7 @@ exports.toggleSymbols = toggleSymbols;
 exports.removeProps = removeProps;
 exports.subscribe = subscribe;
 exports.publish = publish;
+exports.merge = merge;
 var symbol1 = Symbol();
 var symbol2 = Symbol();
 
@@ -2730,6 +2742,21 @@ function publish(eventName) {
   }
 }
 
+/**
+ * Wraps Object.assign to assign multiple props into a new object.
+ *
+ * @param  {Objects} objects The objects to be merged together.
+ *
+ * @return {Object}
+ */
+function merge() {
+  for (var _len2 = arguments.length, objects = Array(_len2), _key2 = 0; _key2 < _len2; _key2++) {
+    objects[_key2] = arguments[_key2];
+  }
+
+  return Object.assign.apply(Object, [{}].concat(objects));
+}
+
 },{}],11:[function(require,module,exports){
 'use strict';
 
@@ -2769,10 +2796,10 @@ var Hello = (0, _index.component)(function (kit) {
   });
 
   kit.infuseHandlers({
-    handleClick: function handleClick(evt, props) {
-      console.log('handling event');
+    handleClick: function handleClick(evt, props, extra) {
+      console.log('handling event', evt, props, extra);
       console.log(props.ref.get('umbrellaDiv'));
-      props.actions.dispatcher();
+      // props.actions.dispatcher()
       //props.actions.example()
     }
   });
@@ -2797,7 +2824,7 @@ var Hello = (0, _index.component)(function (kit) {
       { ref: props.ref('umbrellaDiv') },
       React.createElement(
         'div',
-        { onClick: props.handlers.handleClick },
+        { onClick: props.handlers.handleClick.with('foo') },
         props.helloWorld
       ),
       React.createElement(
@@ -2843,22 +2870,22 @@ var App = (0, _index.application)(function (appKit) {
   });
 
   appKit.createRules('section1', {
-    DEFAULT: function DEFAULT(update, state) {
-      return update(state, {
+    DEFAULT: function DEFAULT(state) {
+      return (0, _index.merge)(state, {
         helloWorld: 'Hello, world!',
         bar: 'bar'
       });
     },
-    UPDATE_GREETING: function UPDATE_GREETING(update, state, payload) {
-      return update(state, {
+    UPDATE_GREETING: function UPDATE_GREETING(state, payload) {
+      return (0, _index.merge)(state, {
         helloWorld: 'Goodbye, world!'
       });
     }
   });
 
   appKit.createRules('section2', {
-    DEFAULT: function DEFAULT(update, state) {
-      return update(state, {
+    DEFAULT: function DEFAULT(state) {
+      return (0, _index.merge)(state, {
         baz: 'baz',
         qux: 'qux'
       });

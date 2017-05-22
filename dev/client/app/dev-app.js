@@ -5,7 +5,8 @@ import {
   Switch,
   When,
   Otherwise,
-  uuid
+  uuid,
+  merge
 } from '../../../bin/index';
 import promiseWare from 'redux-promise'
 
@@ -28,15 +29,17 @@ const Hello = component(kit => {
     helloWorld: kit.ensure.string.isRequired
   })
 
-  kit.infuseState(state => ({
-    helloWorld: state.section1.helloWorld
-  }))
+  kit.infuseState(state => {
+    return {
+      helloWorld: state.section1.helloWorld
+    }
+  })
 
   kit.infuseHandlers({
-    handleClick: (evt, props) => {
-      console.log('handling event')
+    handleClick: (evt, props, extra) => {
+      console.log('handling event', evt, props, extra)
       console.log(props.ref.get('umbrellaDiv'))
-      props.actions.dispatcher()
+      // props.actions.dispatcher()
       //props.actions.example()
     }
   })
@@ -52,7 +55,7 @@ const Hello = component(kit => {
   return (props) => {
     return (
       <div ref={props.ref('umbrellaDiv')}>
-        <div onClick={props.handlers.handleClick}>{props.helloWorld}</div>
+        <div onClick={props.handlers.handleClick.with('foo')}>{props.helloWorld}</div>
         <Switch>
           <When ok={kit.data.ok('MY_DATA')}>
             <div>{kit.data.value('MY_DATA')}</div>
@@ -85,17 +88,17 @@ const App = application(appKit => {
   })
 
   appKit.createRules('section1', {
-    DEFAULT: (update, state) => update(state, {
+    DEFAULT: state => merge(state, {
       helloWorld: 'Hello, world!',
       bar: 'bar'
     }),
-    UPDATE_GREETING: (update, state, payload) => update(state, {
+    UPDATE_GREETING: (state, payload) => merge(state, {
       helloWorld: 'Goodbye, world!'
     })
   })
 
   appKit.createRules('section2', {
-    DEFAULT: (update, state) => update(state, {
+    DEFAULT: state => merge(state, {
       baz: 'baz',
       qux: 'qux'
     })

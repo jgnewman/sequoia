@@ -313,9 +313,19 @@ function component(generator) {
          */
         if (cache.handlers) {
           var newHandlers = (0, _utils.mapObject)(cache.handlers, function (val, key) {
-            return function (evt) {
+            var handler = function handler(evt) {
               return val(evt, newProps);
             };
+            handler.with = function () {
+              for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
+                args[_key] = arguments[_key];
+              }
+
+              return function (evt) {
+                return val.apply(undefined, [evt, newProps].concat(args));
+              };
+            };
+            return handler;
           });
           var mergedHandlers = newProps.handlers ? Object.assign({}, newProps.handlers, newHandlers) : newHandlers;
           newProps = Object.assign({}, newProps, { handlers: mergedHandlers });
