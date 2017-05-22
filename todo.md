@@ -87,7 +87,6 @@ v0.1.0
   - [x] routing/decision-making
   - [x] don't auto-rehydrate location and data
   - [x] when we infuse actions/handlers, don't overwrite these packages coming from parents. just extend them.
-  - [ ] what about an iterator component??
   - [ ] should actions have access to other action FUNCTIONS??
 - [ ] finish rewriting readme
 - [ ] test the various scenarios we were already testing
