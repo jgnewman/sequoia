@@ -7,6 +7,8 @@ exports.Switch = exports.Otherwise = exports.When = exports.Redirect = undefined
 
 var _react = require('react');
 
+var _data = require('./data');
+
 var _utils = require('./utils');
 
 var _routing = require('./routing');

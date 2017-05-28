@@ -6,21 +6,22 @@ import {
   When,
   Otherwise,
   uuid,
-  merge
+  merge,
+  augment
 } from '../../../bin/index';
 import promiseWare from 'redux-promise'
 
 const Whatever = component(kit => {
-  kit.infuseHandlers({
+
+  kit.handlers({
     whatever: () => {},
   })
-  kit.infuseActions(rules => ({
+
+  kit.actions(rules => ({
     whatever: rules.section1.UPDATE_GREETING
   }))
-  return props => {
-    // console.log(props);
-    return <div></div>
-  }
+
+  return <div>Oi m8</div>
 })
 
 const Hello = component(kit => {
@@ -29,23 +30,21 @@ const Hello = component(kit => {
     helloWorld: kit.ensure.string.isRequired
   })
 
-  kit.infuseState(state => {
-    return {
-      helloWorld: state.section1.helloWorld
-    }
-  })
+  kit.observe(state => ({
+    helloWorld: state.section1.helloWorld
+  }))
 
-  kit.infuseHandlers({
+  kit.handlers({
     handleClick: (evt, props, extra) => {
       console.log('handling event', evt, props, extra)
       console.log(props.ref.get('umbrellaDiv'))
-      // props.actions.dispatcher()
+      props.actions.dispatcher()
       //props.actions.example()
     }
   })
 
-  kit.infuseActions((rules, reqs) => ({
-    updateGreeting: rules.section1.UPDATE_GREETING,
+  kit.actions((rules, reqs) => ({
+    updateGreeting: () => ({ rule: rules.section1.UPDATE_GREETING }),
     dispatcher: () => (actions) => {
       actions.updateGreeting()
     },
@@ -104,9 +103,7 @@ const App = application(appKit => {
     })
   })
 
-  return () => {
-    return <Hello />
-  }
+  return <Hello />
 })
 
 

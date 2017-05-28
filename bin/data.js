@@ -152,7 +152,8 @@ function createRestRule() {
           status: null,
           errorMessage: null,
           data: null,
-          pending: false
+          pending: false,
+          requested: false
         }));
 
       case _utils.INTERNALS.DATA_PENDING:
@@ -162,7 +163,8 @@ function createRestRule() {
           status: prevState.status || null,
           errorMessage: prevState.errorMessage || null,
           data: prevState.data || null,
-          pending: true
+          pending: true,
+          requested: true
         }));
 
       case _utils.INTERNALS.DATA_ERROR:
@@ -172,7 +174,8 @@ function createRestRule() {
           status: status,
           errorMessage: errMsg,
           data: null,
-          pending: false
+          pending: false,
+          requested: true
         }));
 
       case _utils.INTERNALS.DATA_SUCCESS:
@@ -181,7 +184,8 @@ function createRestRule() {
           status: status,
           errorMessage: null,
           data: data,
-          pending: false
+          pending: false,
+          requested: true
         }));
 
       default:
@@ -383,6 +387,21 @@ var DataAPI = exports.DataAPI = function () {
     value: function pending(id) {
       var state = this.__getDataState(_store.secretStoreKey, id);
       return state ? state.pending : false;
+    }
+
+    /**
+     * Determine whether a given transaction was initiated.
+     *
+     * @param  {String} id The transaction identifier.
+     *
+     * @return {Boolean} Whether the transaction was initiated.
+     */
+
+  }, {
+    key: 'requested',
+    value: function requested(id) {
+      var state = this.__getDataState(_store.secretStoreKey, id);
+      return state ? state.requested : false;
     }
 
     /**

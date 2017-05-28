@@ -129,7 +129,8 @@ export function createRestRule() {
             status       : null,
             errorMessage : null,
             data         : null,
-            pending      : false
+            pending      : false,
+            requested    : false
           }
         })
 
@@ -141,7 +142,8 @@ export function createRestRule() {
             status       : prevState.status       || null,
             errorMessage : prevState.errorMessage || null,
             data         : prevState.data         || null,
-            pending      : true
+            pending      : true,
+            requested    : true
           }
         })
 
@@ -153,7 +155,8 @@ export function createRestRule() {
             status       : status,
             errorMessage : errMsg,
             data         : null,
-            pending      : false
+            pending      : false,
+            requested    : true
           }
         })
 
@@ -164,7 +167,8 @@ export function createRestRule() {
             status       : status,
             errorMessage : null,
             data         : data,
-            pending      : false
+            pending      : false,
+            requested    : true
           }
         })
 
@@ -361,6 +365,18 @@ export class DataAPI {
   pending(id) {
     const state = this.__getDataState(secretStoreKey, id);
     return state ? state.pending : false;
+  }
+
+  /**
+   * Determine whether a given transaction was initiated.
+   *
+   * @param  {String} id The transaction identifier.
+   *
+   * @return {Boolean} Whether the transaction was initiated.
+   */
+  requested(id) {
+    const state = this.__getDataState(secretStoreKey, id);
+    return state ? state.requested : false;
   }
 
   /**

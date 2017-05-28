@@ -6,7 +6,7 @@
 
 ![Sequoia Banner](./banner.png)
 
-Sequoia is a full-featured JavaScript application framework. It's powered by React and common React-based tools but you can quickly learn Sequoia without having ever touched React in your life. By the same token, it's similar enough to standard React techniques that, if you are already familiar with React best practices, migrating to a Sequoia mindset can be done extremely quickly.
+Sequoia is a natural, progressive, full-featured JavaScript application framework. It's powered by React and common React-based tools but you can quickly learn Sequoia without having ever touched React in your life. By the same token, it's similar enough to standard React techniques that, if you are already familiar with React best practices, migrating to a Sequoia mindset can be done extremely quickly.
 
 For an example, checkout the [Sequoia implementation](https://github.com/jgnewman/sequoia-todomvc) of TodoMVC.
 
@@ -18,7 +18,7 @@ Sequoia seeks to provide a single, installable library that assembles each of th
 
 ## How It Works
 
-A Sequoia app is a system of composable components backed up by a predictable application state. It can be as simple or as complex as you want, allowing you to add in things like http requests and routing at your leisure. All of it comes packaged together when you install Sequoia. There is no need to download and learn multiple disjointed tools.
+A Sequoia app is a system of composable components (powered by React) backed up by a registry of observable values (powered by Redux). It can be as simple or as complex as you want, allowing you to add in things like http requests and routing at your leisure. All of it comes packaged together when you install Sequoia. There is no need to download and learn multiple disjointed tools.
 
 In it's simplest form, a Sequoia app looks like this:
 
@@ -41,7 +41,7 @@ The above snippet will create a full-fledged Sequoia app that renders a single d
 
 ### Composing Components
 
-In Sequoia, your application is broken down into components – small packages of HTML and controlling code that can be instantiated and nested within other components. In fact, the call to `application` generates a component, but it's a special component, intended to live at the top level and get access to special configuration tools like `renderIn`. To create all of your other components, you'll call the `component` function instead.
+In Sequoia, your application is broken down into components – small packages of HTML and controlling code that can be instantiated and nested within other components. In fact, the call to `application` generates a component, but it's a special component, intended to house the rest of your app and get access to special configuration tools like `renderIn`. To create all of your other components, you'll call the `component` function instead.
 
 In order to illustrate the power of component-based architecture, let's add 1 more level of complexity to the above application.
 
@@ -87,13 +87,13 @@ const TextBlock = component(kit => {
 
 In this case, we've used the `ensure` method to guarantee that every time this component is instantiated, it will have a prop called "text" taking the form of a string. If that doesn't happen, we'll get a useful error about it in the console.
 
-This constitutes the basics of component composition in Sequoia. If you are already familiar with React, you should know that Sequoia components create extremely light wrappers over React components. Because Sequoia provides built-in state management, all Sequoia components are stateless. In this way, Sequoia helps you avoid distributed state spaghetti.
+This constitutes the basics of component composition in Sequoia. If you are already familiar with React, you should know that Sequoia components create extremely light wrappers over React components. Because Sequoia provides a form of built-in state management, all Sequoia components are stateless. In this way, Sequoia helps you avoid distributed state spaghetti.
 
-### State Management
+### Observables (i.e. State Management)
 
-Every Sequoia application is supported by a single, global state object. Rather than trying to spaghetti together strange ways for components to communicate with each other and share data, all components will store data on the state and the state will pass that data down as props to all components that need it. Whenever the state changes, those props will update and the components will automatically re-render.
+Every Sequoia application is supported by a single, global state object. The state can be namespaced and values within each namespace are observable. Rather than trying to spaghetti together strange ways for components to communicate with each other and share data, all components will store data on the state and the state will pass that data down as props to all components observing it. Whenever the state changes, those props will update and the components will automatically re-render.
 
-In order to help you avoid getting lost doing all kinds of crazy state transformations, Sequoia lets you create rules for updating a given piece of the state and provides functions for triggering those rules. This way the state is always predictable.
+In order to help you avoid getting lost doing all kinds of crazy state transformations, Sequoia lets you create rules for updating observable values and provides functions for triggering those rules. This way the state is always predictable and observables don't end up causing more trouble than they're worth.
 
 ```jsx
 import { application, component } from 'sequoiajs';
@@ -102,7 +102,7 @@ const TextBlock = component(kit => {
 
   // Observe the state value `state.app.text` and
   // map it to a prop on this component called `text`.
-  kit.infuseState(state => ({
+  kit.observe(state => ({
     text: state.app.text
   }))
 
@@ -123,7 +123,8 @@ application(appKit => {
   appKit.createRules('app', {
 
     // The DEFAULT rule defines the initial shape of this
-    // state namespace.
+    // state namespace, providing default values to all of
+    // its observables.
     DEFAULT: currentNamespace => Object.assign({}, currentNamespace, {
       text: 'Hello, world!'
     })
@@ -135,17 +136,17 @@ application(appKit => {
 })
 ```
 
-In this example, the application component doesn't need to pass a prop down to the TextBlock because the TextBlock is pulling that prop in from the state. Check out (the right way)[https://sequoiajs.com/the-right-way] docs for more info on when to do this and when not to.
+In this example, the application component doesn't need to pass a prop down to the TextBlock because the TextBlock is observing that prop on from the state. Check out (the right way)[https://sequoiajs.com/the-right-way] docs for more info on when to do this and when not to.
 
-When we create the application, we'll create a namespace on our state called "app" and define rules for how it can be transformed. The `DEFAULT` rule is a special rule that is automatically triggered when the app loads and hydrates our namespace with default values.
+When we create the application, we'll create a namespace on our state called "app" and define rules for how it can be transformed. The `DEFAULT` rule is a special rule that is automatically triggered when the app loads and hydrates our namespace observables with default values.
 
-Notice that every rule we create needs to return a **new** copy of the state namespace being updated.
+Notice that every rule we create needs to return a **new** copy of the state namespace being updated. This allows you to update multiple observables at once without inconsistencies if need be, and helps you make sure everything remains sane and predictable.
 
-#### Modifying State
+#### Updating Observables
 
-Now that we know how to set up default values on a state, and also how to get state values into components, let's take a look at updating values on the state. Remember, by updating a value on the state, any component using that value will automatically update to reflect the change.
+Now that we know how to set up default values on a state, and also how to get observable values into components, let's take a look at updating those observable values on the state. Remember, our components are reactive, so when we update an observable value, any component observing it will automatically update to reflect the change.
 
-If we want to update the state, we'll need to define a rule for how that can happen. This allows us to keep our state from getting out of control. So let's add a new rule to our `createRules` call from the previous example:
+If we want to update an observable, we'll need to define a rule that transforms our namespace. This allows us to keep our state from getting out of control. So let's add a new rule to our `createRules` call from the previous example:
 
 ```jsx
 appKit.createRules('app', {
@@ -164,26 +165,26 @@ appKit.createRules('app', {
 
 Note that we can create as many rules as we want for as many namespaces as we want. Each rule is arbitrarily named, except `DEFAULT` which is necessary for defining the initial shape of this piece of the state.
 
-Now that we have a rule that allows updating the text, let's create a function that triggers it. Functions that trigger rules are called "actions" so, in our component definition, we'll need to call a new kit method called `infuseActions`:
+Now that we have a rule that allows updating the "text" observable, let's create a function that triggers it. Functions that trigger rules are called "actions" so, in our component definition, we'll need to call a new kit method called `actions`:
 
 ```jsx
 const TextBlock = component(kit => {
 
   // Create a new prop called `actions` containing
   // all functions defined here.
-  kit.infuseActions(rules => ({
+  kit.actions(rules => ({
 
-    // Return an object with a `type` property that
+    // Return an object with a `rule` property that
     // names a state rule and a `payload` property that
     // will get passed into the rule when it's called.
     updateText: newText => ({
-      type: rules.app.UPDATE_TEXT,
+      rule: rules.app.UPDATE_TEXT,
       payload: newText
     })
 
   }))
 
-  kit.infuseState(state => ({
+  kit.observe(state => ({
     text: state.app.text
   }))
 
@@ -208,7 +209,7 @@ const TextBlock = component(kit => {
 
 If you are familiar with common React/Redux architecture, this will likely make perfect sense to you. If not, it may feel a bit new. If that's the case, here is a brief conclusion tying everything together:
 
-The general idea is that all of your application state is stored in one global state object under various namespaces. Components observe values on these namespaces and can pass those values down to their nested children. Whenever observed values change, all components using them will automatically update. To change those values, we define rules for how the state can be transformed, then infuse actions that trigger those rules into our components.
+The general idea is that all of your application state is stored in one global state object under various namespaces. Components observe values on these namespaces and can pass those values down to their nested children. Whenever observed values change, all components using them will automatically update. To change those values, we define rules for how the state can be transformed, then create actions that trigger those rules within our components.
 
 ## Other Cool Tricks
 
@@ -219,13 +220,13 @@ Sequoia comes bundled with lots of useful functionality, but not so much that it
 You already know about actions in Sequoia – functions that trigger rules for transforming the state. In the example already shown, our action returned an object with a `type` property naming the state rule and a `payload` property that sent in a new value. There are a few other ways you can trigger actions as well. Here are all the options:
 
 ```javascript
-kit.infuseActions((rules, reqs) => ({
+kit.actions((rules, reqs) => ({
 
   // No need for a payload? Just name the rule.
   foo: rules.namespace.FOO,
 
   // Sending a payload? Make a function returning an object.
-  bar: payload => ({ type: rules.namespace.BAR, payload: payload }),
+  bar: payload => ({ rule: rules.namespace.BAR, payload: payload }),
 
   // Need to trigger multiple rules? Return a "thunk" and
   // call all the action functions you need.
@@ -236,7 +237,7 @@ kit.infuseActions((rules, reqs) => ({
     }
   },
 
-  // Need to make an http request? Make a function
+  // Need to make an http request? Create a function
   // that returns one of the "reqs". More on this later.
   qux: () => reqs.get('MY_DATA', '/api/v1/my-data')
 
@@ -259,12 +260,12 @@ When the user clicks the link, an action called `foo` will run and, as you might
 
 The problem with this solution, however, is not only that it looks kind of gross. Also, every time props change and the component re-renders, you'll be generating a brand new function and throwing the old one away for no reason.
 
-To make this whole experience just a bit nicer, Sequoia gives you a component kit method called `infuseHandlers`:
+To make this whole experience just a bit nicer, Sequoia gives you a component kit method called `handlers`:
 
 ```jsx
 const Clickable = component(kit => {
 
-  kit.infuseHandlers({
+  kit.handlers({
     handleClick: (evt, props) => {
       evt.preventDefault();
       props.actions.foo();
@@ -285,7 +286,7 @@ To add just one more layer of icing, Sequoia allows you to add _even more_ value
 ```jsx
 const Clickable = component(kit => {
 
-  kit.infuseHandlers({
+  kit.handlers({
     handleClick: (evt, props, extraVal1, extraVal2) => {
       evt.preventDefault();
       console.log(extraVal1, extraVal2); // <- 'foo', 'bar'
@@ -385,19 +386,19 @@ This, of course, is a fairly basic example, but it should serve to illustrate ho
 
 Sequoia uses [axios](https://github.com/mzabriskie/axios) under the hood for http requests. You'll eventually need to know that if you want to take full advantage of Sequoia's more advanced ajax functionality. But in terms of a basic overview, Sequoia has a very particular idea about how you ought to be working with your data in order for your application to be scalable.
 
-Specifically, fetched data ought to flow through the state just like all other data. This way, things can automatically re-render when the data changes and you can deal with it nicely throughout your nested components.
+Specifically, fetched data ought to be observable through the state just like all other data. This way, things can automatically re-render when the data changes and you can deal with it nicely throughout your nested components.
 
-However, fetching data can be unpredictable. You might get success or you might get an error. At any given time, you may or may not have data in the state. There's even that weird limbo to account for while the request is currently out. It would be extremely cumbersome to have to set up rules to handle all of the possibilities so Sequoia has handled it for you.
+However, fetching data can be a bit like Schrödinger's cat. You might get success or you might get an error. At any given time, you may or may not have data in the state. There's even that weird limbo to account for after a request has been made but before the response has come back. It would be extremely cumbersome to have to set up rules to handle all of the possibilities so Sequoia has handled it for you.
 
-To begin, you'll want to know that data is always fetched via special actions called "reqs" (short for "requests"). When you infuse actions into a component, you get access to all of these reqs:
+To begin, you'll want to know that data is always fetched via special actions called "reqs" (short for "requests"). When you create actions for a component, you get access to all of these reqs:
 
 ```javascript
-kit.infuseActions((rules, reqs) => ({
+kit.actions((rules, reqs) => ({
   getUsers: () => reqs.get('USER_LIST', '/api/v1/users')
 }))
 ```
 
-In this example, we're creating an action function called `getUsers` that returns an instance of `reqs.get`. The first argument we pass to every req is a unique string that singles it out from all other data requests in the application. In this case, our second argument is the URL we want to make a GET request to.
+In this example, we're creating an action called `getUsers` that returns an instance of `reqs.get`. The first argument we pass to every req is a unique string that singles it out from all other data requests in the application. In this case, our second argument is the URL we want to make a GET request to.
 
 Because data may or may not exist at any given time, it doesn't make sense for it to flow directly down to your components through the props. It would make things especially complicated when trying to ensure your prop types and so forth. So instead, every component kit comes with a data api for working with data. To illustrate...
 
@@ -407,11 +408,11 @@ import { Spinner } from './my-spinner';
 
 const UserList = component(kit => {
 
-  kit.infuseActions((rules, reqs) => ({
+  kit.actions((rules, reqs) => ({
     getUsers: () => reqs.get('USER_LIST', '/api/v1/users')
   }))
 
-  kit.infuseHandlers({
+  kit.handlers({
     handleClick: (evt, props) => {
       evt.preventDefault();
       props.actions.getUsers()
@@ -460,7 +461,7 @@ There is a lot more that can be done with data requests. But I'll leave you to e
 
 If you are familiar with Backbone.js, you have a concept of a "collection" – an array of similar objects that tends to be the result of a data fetch. For example, if you were to query an API for a list of users, you would get back an array of user objects.
 
-Many other frameworks would have you do something like instantiate a Collection class in order to perform functions on this list and to make it DOM-bindable. However, Sequoia allows you to handle this in a much simpler way.
+Many other frameworks would have you do something like instantiate a Collection "model" class in order to perform functions on this list and to make it DOM-bindable. However, Sequoia allows you to handle this in a much simpler way.
 
 For one, you don't need to do anything special to an array of objects in order to make it DOM bindable as long as it ends up in your props somehow:
 
@@ -479,7 +480,7 @@ import { component, collect } from 'sequoiajs';
 
 const UserList = component(kit => {
 
-  kit.infuseState(state => ({ users: state.app.users }))
+  kit.observe(state => ({ users: state.app.users }))
 
   return props => {
     const activeUsers = collect(props.users).getAllWhere({ isActive: true });
@@ -509,7 +510,7 @@ To help you do this, Sequoia provides a nice technique for referencing actual DO
 ```jsx
 component(kit => {
 
-  kit.infuseHandlers({
+  kit.handlers({
 
     handleClick: (evt, props) => {
       evt.preventDefault();

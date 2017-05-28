@@ -235,6 +235,16 @@ function application(generator) {
   var storeWrapper = new _store.StoreWrapper(appCache.config || {});
 
   /*
+   * If the component returns pure JSX, wrap it in a function.
+   */
+  if (Application && Application.$$typeof === Symbol.for('react.element')) {
+    var App = Application;
+    Application = function Application() {
+      return App;
+    };
+  }
+
+  /*
    * Create the function that will render the application.
    * When we render, pass the storeWrapper down through the
    * context tree.
@@ -730,11 +740,17 @@ function collect(array) {
 },{}],3:[function(require,module,exports){
 'use strict';
 
-var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
+var _typeof2 = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
+
+var _typeof = typeof Symbol === "function" && _typeof2(Symbol.iterator) === "symbol" ? function (obj) {
+  return typeof obj === "undefined" ? "undefined" : _typeof2(obj);
+} : function (obj) {
+  return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj === "undefined" ? "undefined" : _typeof2(obj);
+};
 
 var _createClass = function () {
   function defineProperties(target, props) {
@@ -783,12 +799,12 @@ function _defineProperty(obj, key, value) {
 function _possibleConstructorReturn(self, call) {
   if (!self) {
     throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
-  }return call && ((typeof call === "undefined" ? "undefined" : _typeof(call)) === "object" || typeof call === "function") ? call : self;
+  }return call && ((typeof call === "undefined" ? "undefined" : _typeof2(call)) === "object" || typeof call === "function") ? call : self;
 }
 
 function _inherits(subClass, superClass) {
   if (typeof superClass !== "function" && superClass !== null) {
-    throw new TypeError("Super expression must either be null or a function, not " + (typeof superClass === "undefined" ? "undefined" : _typeof(superClass)));
+    throw new TypeError("Super expression must either be null or a function, not " + (typeof superClass === "undefined" ? "undefined" : _typeof2(superClass)));
   }subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } });if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass;
 }
 
@@ -855,8 +871,8 @@ var ComponentKit = function () {
      */
 
   }, {
-    key: 'infuseState',
-    value: function infuseState(infuser) {
+    key: 'observe',
+    value: function observe(infuser) {
       this.__cache.stateInfusers = this.__cache.stateInfusers || [];
       this.__cache.stateInfusers.push(infuser);
       return this;
@@ -871,10 +887,10 @@ var ComponentKit = function () {
      */
 
   }, {
-    key: 'infuseHandlers',
-    value: function infuseHandlers(handlers) {
+    key: 'handlers',
+    value: function handlers(_handlers) {
       this.__cache.handlers = this.__cache.handlers || {};
-      Object.assign(this.__cache.handlers, handlers);
+      Object.assign(this.__cache.handlers, _handlers);
       return this;
     }
 
@@ -887,8 +903,8 @@ var ComponentKit = function () {
      */
 
   }, {
-    key: 'infuseActions',
-    value: function infuseActions(infuser) {
+    key: 'actions',
+    value: function actions(infuser) {
       this.__cache.actionInfusers = this.__cache.actionInfusers || [];
       this.__cache.actionInfusers.push(infuser);
       return this;
@@ -984,6 +1000,8 @@ function createDispatcher(storeWrapper, actionProps, fn) {
      */
     if (typeof actionType === 'string') {
       actionType = { type: actionType };
+    } else if ((typeof actionType === 'undefined' ? 'undefined' : _typeof(actionType)) === 'object' && actionType.rule && !actionType.type) {
+      actionType.type = actionType.rule;
     }
 
     /*
@@ -1015,6 +1033,16 @@ function component(generator) {
    */
   var cache = {};
   var renderFn = generator(new ComponentKit(cache, getStoreWrapper));
+
+  /*
+   * If the component returns pure JSX, wrap it in a function.
+   */
+  if (renderFn && renderFn.$$typeof === Symbol.for('react.element')) {
+    var origRender = renderFn;
+    renderFn = function renderFn() {
+      return origRender;
+    };
+  }
 
   /*
    * Create a proxy component so that we can access render and context.
@@ -1385,7 +1413,8 @@ function createRestRule() {
           status: null,
           errorMessage: null,
           data: null,
-          pending: false
+          pending: false,
+          requested: false
         }));
 
       case _utils.INTERNALS.DATA_PENDING:
@@ -1395,7 +1424,8 @@ function createRestRule() {
           status: prevState.status || null,
           errorMessage: prevState.errorMessage || null,
           data: prevState.data || null,
-          pending: true
+          pending: true,
+          requested: true
         }));
 
       case _utils.INTERNALS.DATA_ERROR:
@@ -1405,7 +1435,8 @@ function createRestRule() {
           status: status,
           errorMessage: errMsg,
           data: null,
-          pending: false
+          pending: false,
+          requested: true
         }));
 
       case _utils.INTERNALS.DATA_SUCCESS:
@@ -1414,7 +1445,8 @@ function createRestRule() {
           status: status,
           errorMessage: null,
           data: data,
-          pending: false
+          pending: false,
+          requested: true
         }));
 
       default:
@@ -1618,6 +1650,21 @@ var DataAPI = exports.DataAPI = function () {
     }
 
     /**
+     * Determine whether a given transaction was initiated.
+     *
+     * @param  {String} id The transaction identifier.
+     *
+     * @return {Boolean} Whether the transaction was initiated.
+     */
+
+  }, {
+    key: 'requested',
+    value: function requested(id) {
+      var state = this.__getDataState(_store.secretStoreKey, id);
+      return state ? state.requested : false;
+    }
+
+    /**
      * Determine whether data exists for a given transaction. Note that `false`
      * does not equate to an error state. The result will be true only if
      * a transaction is complete and data exists. It will be false if the
@@ -1787,6 +1834,8 @@ exports.Switch = exports.Otherwise = exports.When = exports.Redirect = undefined
 
 var _react = require('react');
 
+var _data = require('./data');
+
 var _utils = require('./utils');
 
 var _routing = require('./routing');
@@ -1908,7 +1957,7 @@ var Switch = exports.Switch = (0, _component.component)(function () {
   };
 });
 
-},{"./component":3,"./routing":8,"./utils":10,"react":256}],8:[function(require,module,exports){
+},{"./component":3,"./data":5,"./routing":8,"./utils":10,"react":256}],8:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -2769,18 +2818,22 @@ var _reduxPromise2 = _interopRequireDefault(_reduxPromise);
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 var Whatever = (0, _index.component)(function (kit) {
-  kit.infuseHandlers({
+
+  kit.handlers({
     whatever: function whatever() {}
   });
-  kit.infuseActions(function (rules) {
+
+  kit.actions(function (rules) {
     return {
       whatever: rules.section1.UPDATE_GREETING
     };
   });
-  return function (props) {
-    // console.log(props);
-    return React.createElement('div', null);
-  };
+
+  return React.createElement(
+    'div',
+    null,
+    'Oi m8'
+  );
 });
 
 var Hello = (0, _index.component)(function (kit) {
@@ -2789,24 +2842,26 @@ var Hello = (0, _index.component)(function (kit) {
     helloWorld: kit.ensure.string.isRequired
   });
 
-  kit.infuseState(function (state) {
+  kit.observe(function (state) {
     return {
       helloWorld: state.section1.helloWorld
     };
   });
 
-  kit.infuseHandlers({
+  kit.handlers({
     handleClick: function handleClick(evt, props, extra) {
       console.log('handling event', evt, props, extra);
       console.log(props.ref.get('umbrellaDiv'));
-      // props.actions.dispatcher()
+      props.actions.dispatcher();
       //props.actions.example()
     }
   });
 
-  kit.infuseActions(function (rules, reqs) {
+  kit.actions(function (rules, reqs) {
     return {
-      updateGreeting: rules.section1.UPDATE_GREETING,
+      updateGreeting: function updateGreeting() {
+        return { rule: rules.section1.UPDATE_GREETING };
+      },
       dispatcher: function dispatcher() {
         return function (actions) {
           actions.updateGreeting();
@@ -2892,9 +2947,7 @@ var App = (0, _index.application)(function (appKit) {
     }
   });
 
-  return function () {
-    return React.createElement(Hello, null);
-  };
+  return React.createElement(Hello, null);
 });
 
 var App2 = (0, _index.application)(function (appKit) {

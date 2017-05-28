@@ -104,4 +104,14 @@ v0.1.2
 - [x] the whole (update, state) => update(state) thing is overkill. just return the update.
   - [x] provide a nice `merge` function for anyone not using ES6
   - [x] update readme
-- [ ] update docs site (in-progress)
+- [x] update docs site (in-progress)
+
+v0.1.3
+
+- [x] Renames
+  - [x] infuseState -> observe
+  - [x] infuseActions -> actions
+  - [x] infuseHandlers -> handlers
+- [x] You are allowed to return pure, unwrapped JSX from components
+- [x] Actions can use a "type" property or a "rule" property.
+- [x] Update README

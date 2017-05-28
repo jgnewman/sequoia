@@ -4,7 +4,7 @@ import ReactDOM from 'react-dom';
 import PropTypes from 'prop-types';
 import { connect, Provider } from 'react-redux';
 
-import { INTERNALS, mapObject, toggleSymbols } from './utils';
+import { INTERNALS, mapObject, toggleSymbols, augment } from './utils';
 import { secretStoreKey, StoreWrapper } from './store';
 import { requestsPackage, DataAPI } from './data';
 
@@ -56,7 +56,7 @@ class ComponentKit {
    *
    * @return {ComponentKit}
    */
-  infuseState(infuser) {
+  observe(infuser) {
     this.__cache.stateInfusers = this.__cache.stateInfusers || [];
     this.__cache.stateInfusers.push(infuser);
     return this;
@@ -69,7 +69,7 @@ class ComponentKit {
    *
    * @return {ComponentKit}
    */
-  infuseHandlers(handlers) {
+  handlers(handlers) {
     this.__cache.handlers = this.__cache.handlers || {};
     Object.assign(this.__cache.handlers, handlers);
     return this;
@@ -82,7 +82,7 @@ class ComponentKit {
    *
    * @return {ComponentKit}
    */
-  infuseActions(infuser) {
+  actions(infuser) {
     this.__cache.actionInfusers = this.__cache.actionInfusers || [];
     this.__cache.actionInfusers.push(infuser);
     return this;
@@ -171,6 +171,8 @@ function createDispatcher(storeWrapper, actionProps, fn) {
      */
     if (typeof actionType === 'string') {
       actionType = { type: actionType };
+    } else if (typeof actionType === 'object' && actionType.rule && !actionType.type) {
+      actionType.type = actionType.rule;
     }
 
     /*
@@ -201,7 +203,15 @@ export function component(generator) {
    * data informing how to map state to props, create actions, etc.
    */
   const cache = {};
-  const renderFn = generator(new ComponentKit(cache, getStoreWrapper));
+  let   renderFn = generator(new ComponentKit(cache, getStoreWrapper));
+
+  /*
+   * If the component returns pure JSX, wrap it in a function.
+   */
+  if(renderFn && renderFn.$$typeof === Symbol.for('react.element')) {
+    const origRender = renderFn;
+    renderFn = () => origRender;
+  }
 
   /*
    * Create a proxy component so that we can access render and context.

@@ -4,6 +4,8 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
+
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 exports.component = component;
@@ -96,8 +98,8 @@ var ComponentKit = function () {
      */
 
   }, {
-    key: 'infuseState',
-    value: function infuseState(infuser) {
+    key: 'observe',
+    value: function observe(infuser) {
       this.__cache.stateInfusers = this.__cache.stateInfusers || [];
       this.__cache.stateInfusers.push(infuser);
       return this;
@@ -112,10 +114,10 @@ var ComponentKit = function () {
      */
 
   }, {
-    key: 'infuseHandlers',
-    value: function infuseHandlers(handlers) {
+    key: 'handlers',
+    value: function handlers(_handlers) {
       this.__cache.handlers = this.__cache.handlers || {};
-      Object.assign(this.__cache.handlers, handlers);
+      Object.assign(this.__cache.handlers, _handlers);
       return this;
     }
 
@@ -128,8 +130,8 @@ var ComponentKit = function () {
      */
 
   }, {
-    key: 'infuseActions',
-    value: function infuseActions(infuser) {
+    key: 'actions',
+    value: function actions(infuser) {
       this.__cache.actionInfusers = this.__cache.actionInfusers || [];
       this.__cache.actionInfusers.push(infuser);
       return this;
@@ -226,6 +228,8 @@ function createDispatcher(storeWrapper, actionProps, fn) {
      */
     if (typeof actionType === 'string') {
       actionType = { type: actionType };
+    } else if ((typeof actionType === 'undefined' ? 'undefined' : _typeof(actionType)) === 'object' && actionType.rule && !actionType.type) {
+      actionType.type = actionType.rule;
     }
 
     /*
@@ -257,6 +261,16 @@ function component(generator) {
    */
   var cache = {};
   var renderFn = generator(new ComponentKit(cache, getStoreWrapper));
+
+  /*
+   * If the component returns pure JSX, wrap it in a function.
+   */
+  if (renderFn && renderFn.$$typeof === Symbol.for('react.element')) {
+    var origRender = renderFn;
+    renderFn = function renderFn() {
+      return origRender;
+    };
+  }
 
   /*
    * Create a proxy component so that we can access render and context.

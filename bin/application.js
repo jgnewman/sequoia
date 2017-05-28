@@ -211,6 +211,16 @@ function application(generator) {
   var storeWrapper = new _store.StoreWrapper(appCache.config || {});
 
   /*
+   * If the component returns pure JSX, wrap it in a function.
+   */
+  if (Application && Application.$$typeof === Symbol.for('react.element')) {
+    var App = Application;
+    Application = function Application() {
+      return App;
+    };
+  }
+
+  /*
    * Create the function that will render the application.
    * When we render, pass the storeWrapper down through the
    * context tree.

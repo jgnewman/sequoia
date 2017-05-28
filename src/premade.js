@@ -1,6 +1,7 @@
 import { Children } from 'react';
 
-import { removeProps, createError, win } from './utils';
+import { requestsPackage } from './data';
+import { INTERNALS, removeProps, createError, win } from './utils';
 import { vetProps, arrayifyChildren } from './routing';
 import { component } from './component';
 

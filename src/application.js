@@ -144,8 +144,16 @@ function shouldDelayRender(config) {
  */
 export function application(generator) {
   const appCache = {};
-  const Application = generator(new AppKit(appCache));
+  let   Application = generator(new AppKit(appCache));
   const storeWrapper = new StoreWrapper(appCache.config || {});
+
+  /*
+   * If the component returns pure JSX, wrap it in a function.
+   */
+  if(Application && Application.$$typeof === Symbol.for('react.element')) {
+    const App = Application;
+    Application = () => App;
+  }
 
   /*
    * Create the function that will render the application.
