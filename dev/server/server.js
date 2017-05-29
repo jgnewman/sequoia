@@ -11,6 +11,10 @@ app.use('/app.js', express.static(
   path.resolve(__dirname, '../', 'client/app.js')
 ));
 
+app.use('/sequoia-min.js', express.static(
+  path.resolve(__dirname, '../', 'client/sequoia-min.js')
+));
+
 app.use('/todomvc.js', express.static(
   path.resolve(__dirname, '../', 'client/todomvc.js')
 ));

@@ -1,68 +1,55 @@
 'use strict';
 
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
+var _react = require('react');
 
-var _premade = require('./premade');
-
-Object.keys(_premade).forEach(function (key) {
-  if (key === "default" || key === "__esModule") return;
-  Object.defineProperty(exports, key, {
-    enumerable: true,
-    get: function get() {
-      return _premade[key];
-    }
-  });
-});
+var _react2 = _interopRequireDefault(_react);
 
 var _utils = require('./utils');
 
-Object.defineProperty(exports, 'merge', {
-  enumerable: true,
-  get: function get() {
-    return _utils.merge;
-  }
-});
-
 var _collect = require('./collect');
-
-Object.defineProperty(exports, 'collect', {
-  enumerable: true,
-  get: function get() {
-    return _collect.collect;
-  }
-});
 
 var _component = require('./component');
 
-Object.defineProperty(exports, 'component', {
-  enumerable: true,
-  get: function get() {
-    return _component.component;
-  }
-});
-
 var _application = require('./application');
-
-Object.defineProperty(exports, 'application', {
-  enumerable: true,
-  get: function get() {
-    return _application.application;
-  }
-});
 
 var _constants = require('./constants');
 
-Object.defineProperty(exports, 'constants', {
-  enumerable: true,
-  get: function get() {
-    return _constants.constants;
-  }
-});
-Object.defineProperty(exports, 'uuid', {
-  enumerable: true,
-  get: function get() {
-    return _constants.uuid;
-  }
-});
+var _premade = require('./premade');
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+/*
+ * Package up our exports
+ */
+var exp = {
+
+  /*
+   * Functions
+   */
+  application: _application.application,
+  collect: _collect.collect,
+  component: _component.component,
+  constants: _constants.constants,
+  createElement: _react2.default.createElement,
+  merge: _utils.merge,
+  uuid: _constants.uuid,
+
+  /*
+   * Pre-made components
+   */
+  Otherwise: _premade.Otherwise,
+  Redirect: _premade.Redirect,
+  Switch: _premade.Switch,
+  When: _premade.When
+};
+
+/*
+ * Export for Node and the browser.
+ */
+if (typeof window !== 'undefined') {
+  window.Sequoia = exp;
+}
+
+if (typeof module !== 'undefined' || typeof exports !== 'undefined') {
+  module.exports = exports = exp;
+}

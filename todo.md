@@ -115,3 +115,12 @@ v0.1.3
 - [x] You are allowed to return pure, unwrapped JSX from components
 - [x] Actions can use a "type" property or a "rule" property.
 - [x] Update README
+
+v0.1.4
+
+- [x] Should be usable via a <script> tag
+
+v0.1.5
+
+- [ ] Should be isomorphic
+- [ ] Should produce good lighthouse scores

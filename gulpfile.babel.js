@@ -6,6 +6,7 @@ import { server, app } from './dev/server/server'
 import livereload from 'express-livereload';
 import browserify from 'browserify';
 import babelify from 'babelify';
+import uglify from 'gulp-uglify';
 import source from 'vinyl-source-stream';
 import buffer from 'vinyl-buffer';
 import { log } from 'gulp-util';
@@ -23,7 +24,16 @@ gulp.task('build:compile', ['build:clean'], () => {
 
 gulp.task('build', ['build:clean', 'build:compile']);
 
-gulp.task('serve:build-client-app', ['build'], () => {
+gulp.task('bundle', ['build'], () => {
+  return browserify(['bin/index.js'])
+    .bundle()
+    .pipe(source('sequoia-min.js'))
+    .pipe(buffer())
+    .pipe(uglify())
+    .pipe(gulp.dest('dev/client'))
+})
+
+gulp.task('serve:build-client-app', ['build', 'bundle'], () => {
   return browserify(['dev/client/app/dev-app.js'])
     .transform('babelify', {presets: ['es2015']})
     .bundle()
@@ -43,7 +53,7 @@ gulp.task('serve', ['build', 'serve:build-client-app'], () => {
 });
 
 
-gulp.task('test', ['build'], () => {
+gulp.task('test', ['build', 'bundle'], () => {
   return gulp.src(['./test/**/*.js'], { read: false })
              .pipe(mocha({
                reporter: 'spec',
