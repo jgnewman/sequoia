@@ -141,3 +141,7 @@ v0.2.0
 v0.2.1
 
 - [x] Fix readme
+
+v0.2.2
+
+- [x] Add npm keywords

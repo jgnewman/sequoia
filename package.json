@@ -1,11 +1,21 @@
 {
   "name": "sequoiajs",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "A full-featured JavaScript application framework powered by React.",
   "main": "bin/index.js",
   "repository": "git@github.com:jgnewman/sequoia",
   "author": "John Newman <rescuecreative@gmail.com>",
   "license": "MIT",
+  "keywords": [
+    "react",
+    "redux",
+    "reactive",
+    "framework",
+    "sequoia",
+    "sequoiajs",
+    "application",
+    "isomorphic"
+  ],
   "scripts": {
     "iso": "gulp serve-isomorphic",
     "dev": "gulp serve",
