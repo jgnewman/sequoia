@@ -7,6 +7,10 @@ exports.createLocation = createLocation;
 exports.createHashRule = createHashRule;
 exports.vetProps = vetProps;
 exports.arrayifyChildren = arrayifyChildren;
+exports.pathMatch = pathMatch;
+exports.subPathMatch = subPathMatch;
+exports.hashMatch = hashMatch;
+exports.subHashMatch = subHashMatch;
 
 var _react = require('react');
 
@@ -18,10 +22,9 @@ var _store = require('./store');
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-var EXCLUSIVE_PROPS = ['ok', 'notOk', 'path', 'hash', 'subPath', 'subHash', 'populated', 'empty'];
+var EXCLUSIVE_PROPS = ['ok', 'notOk', 'path', 'hash', 'subPath', 'subHash', 'populated', 'empty', 'params', 'dataOk', 'dataNotOk'];
 
 var AFTSLASH = /\/$/;
-var STATEKEY = Symbol();
 var ACTION_STRING = _utils.INTERNALS.HASH_PATH + ':DEFAULT';
 
 /*
@@ -126,17 +129,18 @@ function assertComponentOrChildren(props) {
  *
  * @param  {String}  desired  The desired path. I.E. "/foo", "/foo/bar", "/foo/*"
  * @param  {Boolean} isHash   Whether we're testing hash paths.
+ * @param  {String}  supplied Optional. A supplied pathname.
  *
  * @return {Boolean} Whether the pathname matches.
  */
-function testPath(desired, isHash) {
+function testPath(desired, isHash, supplied) {
   var toMatch = isHash ? pathifyHash(desired) : desired.replace(AFTSLASH, '');
-  var path = isHash ? pathifyHash(currentLocation.hash) : currentLocation.pathname.replace(AFTSLASH, '');
+  var path = isHash ? pathifyHash(supplied || currentLocation.hash) : (supplied || currentLocation.pathname).replace(AFTSLASH, '');
 
   /*
    * If the paths are identical, match.
    */
-  if (isHash && desired === currentLocation.hash || !isHash && path === toMatch) {
+  if (isHash && desired === (supplied || currentLocation.hash) || !isHash && path === toMatch) {
     return true;
 
     /*
@@ -160,17 +164,18 @@ function testPath(desired, isHash) {
  *
  * @param  {String}  desired  The desired subPath. I.E. "/foo", "/foo/bar", "/foo/*"
  * @param  {Boolean} isHash   Whether we're testing hash paths.
+ * @param  {String}  supplied Optional. A supplied pathname.
  *
  * @return {Boolean} Whether the pathname matches.
  */
-function testSubPath(desired, isHash) {
+function testSubPath(desired, isHash, supplied) {
   var toMatch = isHash ? pathifyHash(desired) : desired.replace(AFTSLASH, '');
-  var path = isHash ? pathifyHash(currentLocation.hash) : currentLocation.pathname.replace(AFTSLASH, '');
+  var path = isHash ? pathifyHash(supplied || currentLocation.hash) : (supplied || currentLocation.pathname).replace(AFTSLASH, '');
 
   /*
    * If the paths are identical, match.
    */
-  if (isHash && desired === currentLocation.hash || !isHash && path === toMatch) {
+  if (isHash && desired === (supplied || currentLocation.hash) || !isHash && path === toMatch) {
     return true;
   } else {
 
@@ -215,33 +220,103 @@ function testPopulated(obj) {
 }
 
 /**
+ * Determines whether query string params match.
+ *
+ * @param  {Object}        paramsToTest    The values we're looking for.
+ * @param  {String|Object} suppliedParams  Represents the actual values.
+ *
+ * @return {Boolean} Whether or not we found a match.
+ */
+function testParams(paramsToTest, suppliedParams) {
+  var currentParams = suppliedParams || currentLocation.params;
+  var matched = true;
+
+  /*
+   * Make sure we have our params in the form of an object.
+   */
+  if (typeof currentParams === 'string') {
+    currentParams = parseSearch(currentParams);
+  }
+
+  /*
+   * And make sure we actually have a value to test against.
+   */
+  if (!currentParams) {
+    currentParams = {};
+  }
+
+  /*
+   * Loop over our desired values and make sure each one matches an
+   * actual value.
+   */
+  Object.keys(paramsToTest).every(function (key) {
+    var testVal = paramsToTest[key];
+    var realVal = currentParams[key];
+
+    if (testVal === realVal) {
+      return true;
+    } else {
+      return matched = false;
+    }
+  });
+
+  return matched;
+}
+
+/**
+ * Shortcut the data api.
+ *
+ * @param  {String} dataProp   A data api function name (i.e "ok")
+ * @param  {String} valueName  The data identifier in question.
+ * @param  {Object} kit        A component kit.
+ *
+ * @return {Boolean} Whether the test resolved.
+ */
+function testData(dataProp, valueName, kit) {
+  return kit.data[dataProp](valueName);
+}
+
+/**
  * Determines whether a test prop resolves.
  *
- * @param  {String}  test    The name of the property we're using for a test.
- * @param  {Any}     desired Each test prop will deal with a different type of value.
+ * @param  {String}  test        The name of the property we're using for a test (i.e. "path").
+ * @param  {Any}     desired     Each test prop will deal with a different type of value.
+ * @param  {Object}  kit         A component kit.
+ * @param  {Object}  locationCtx Optional. A manually-supplied location context.
  *
  * @return {Boolean} True if the test resolved.
  */
-function testResolves(test, desired) {
+function testResolves(test, desired, kit, locationCtx) {
+  locationCtx = locationCtx || {};
   switch (test) {
     case 'notOk':
       return !desired;
     case 'ok':
       return !!desired;
     case 'path':
-      return testPath(desired);
+      return testPath(desired, false, locationCtx.pathname);
     case 'hash':
-      return testPath(desired, true);
+      return testPath(desired, true, locationCtx.hash);
     case 'subPath':
-      return testSubPath(desired);
+      return testSubPath(desired, false, locationCtx.pathname);
     case 'subHash':
-      return testSubPath(desired, true);
+      return testSubPath(desired, true, locationCtx.hash);
     case 'populated':
       return testPopulated(desired);
     case 'empty':
       return !testPopulated(desired);
+    case 'params':
+      return testParams(desired, locationCtx.search || locationCtx.params);
+    case 'dataOk':
+      return testData('ok', desired, kit);
+    case 'dataNotOk':
+      return testData('notOk', desired, kit);
+    case 'dataPending':
+      return testData('pending', desired, kit);
+    case 'dataRequested':
+      return testData('requested', desired, kit);
     default:
-      throw (0, _utils.createError)('\n                           Something\'s gone horribly wrong with conditional\n                           routing. Usually this happens if you forget to\n                           include a necessary prop on a `When` component\n                           or spell the prop\'s name wrong.\n                         ');
+      throw (0, _utils.createError)('\n                               Something\'s gone horribly wrong with conditional\n                               routing. Usually this happens if you forget to\n                               include a necessary prop on a `When` component\n                               or spell the prop\'s name wrong.\n                             ');
   }
   return false;
 }
@@ -249,10 +324,12 @@ function testResolves(test, desired) {
 /**
  * Converts the `location.search` property into an object.
  *
+ * @param {String} supplied Optional. A supplied search string.
+ *
  * @return {Object} Contains query string values.
  */
-function parseSearch() {
-  var search = _utils.win.location.search.substring(1);
+function parseSearch(supplied) {
+  var search = (supplied || _utils.win.location.search).substring(1);
   try {
     return !search ? {} : JSON.parse('{"' + search.replace(/&/g, '","').replace(/=/g, '":"') + '"}', function (key, value) {
       return key === "" ? value : decodeURIComponent(value);
@@ -273,7 +350,7 @@ function parseSearch() {
  * @return {Object} Contains important info about location.
  */
 function createLocation() {
-  return Object.assign({}, (0, _utils.removeProps)(_utils.win.location, ['ancestorOrigins', 'assign', 'reload', 'replace']), {
+  return (0, _utils.merge)((0, _utils.removeProps)(_utils.win.location, ['ancestorOrigins', 'assign', 'reload', 'replace']), {
     params: parseSearch(),
     hash: normalizeHash(_utils.win.location.hash || '')
   });
@@ -293,16 +370,18 @@ function createHashRule() {
  * is ok and whether the component should render based on the outcome.
  *
  * @param  {Object}  props        Component props.
+ * @param  {Object}  kit          The component kit.
+ * @param  {Object}  locationCtx  Optional. A manually-supplied location context.
  * @param  {Boolean} forceResolve Whether we should force the test to resolve.
  *
  * @return {Object}  Documents the prop that was used for testing,
  *                   whether or not the component has children,
  *                   and whether or not the test resolved.
  */
-function vetProps(props, forceResolve) {
+function vetProps(props, kit, locationCtx, forceResolve) {
   var testProp = assertCleanProps(props);
   var hasChildren = assertComponentOrChildren(props).children;
-  var resolves = !!forceResolve || testResolves(testProp, props[testProp]);
+  var resolves = !!forceResolve || testResolves(testProp, props[testProp], kit, locationCtx);
   return {
     testProp: testProp,
     hasChildren: hasChildren,
@@ -326,6 +405,54 @@ function arrayifyChildren(children) {
   } else {
     return [children];
   }
+}
+
+/**
+ * Allow users to manually test a path pattern against a string.
+ *
+ * @param  {String} pattern The desired pattern, such as "/foo/*"
+ * @param  {String} actual  A string to test against, such as "/foo/bar"
+ *
+ * @return {Boolean} Whether a match was detected.
+ */
+function pathMatch(pattern, actual) {
+  return testPath(pattern, false, actual);
+}
+
+/**
+ * Allow users to manually test a subpath pattern against a string.
+ *
+ * @param  {String} pattern The desired pattern, such as "/foo/*"
+ * @param  {String} actual  A string to test against, such as "/foo/bar"
+ *
+ * @return {Boolean} Whether a match was detected.
+ */
+function subPathMatch(pattern, actual) {
+  return testSubPath(pattern, false, actual);
+}
+
+/**
+ * Allow users to manually test a hash path pattern against a string.
+ *
+ * @param  {String} pattern The desired pattern, such as "#/foo/*"
+ * @param  {String} actual  A string to test against, such as "#/foo/bar"
+ *
+ * @return {Boolean} Whether a match was detected.
+ */
+function hashMatch(pattern, actual) {
+  return testPath(pattern, true, actual);
+}
+
+/**
+ * Allow users to manually test a sub hash path pattern against a string.
+ *
+ * @param  {String} pattern The desired pattern, such as "#/foo/*"
+ * @param  {String} actual  A string to test against, such as "#/foo/bar"
+ *
+ * @return {Boolean} Whether a match was detected.
+ */
+function subHashMatch(pattern, actual) {
+  return testSubPath(pattern, true, actual);
 }
 
 /*

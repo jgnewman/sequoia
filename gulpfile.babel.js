@@ -2,7 +2,8 @@ import gulp from 'gulp';
 import clean from 'gulp-clean';
 import babel from 'gulp-babel';
 import mocha from 'gulp-mocha';
-import { server, app } from './dev/server/server'
+import { server, app } from './dev/server/server';
+import { isoServer, isoApp } from './isomorphic-dev/server';
 import livereload from 'express-livereload';
 import browserify from 'browserify';
 import babelify from 'babelify';
@@ -51,6 +52,22 @@ gulp.task('serve', ['build', 'serve:build-client-app'], () => {
     gulp.watch(['./src/**/*.js', './dev/client/app/**/*.js'], ['serve:build-client-app']);
   });
 });
+
+gulp.task('serve:build-iso-app', ['build'], () => {
+  return browserify(['isomorphic-dev/client-src.js'])
+    .transform('babelify', {presets: ['es2015']})
+    .bundle()
+    .pipe(source('client-compiled.js')) // First create a named file package
+    .pipe(buffer()) // Then turn that fracker into a gulp-compatible package
+    .pipe(gulp.dest('isomorphic-dev'));
+})
+
+gulp.task('serve-isomorphic', ['build', 'serve:build-iso-app'], () => {
+  isoServer.listen(8080, () => {
+    gulp.watch(['./src/**/*.js'], ['build', 'serve:build-iso-app']);
+    gulp.watch(['./isomorphic-dev/client-src.js'], ['serve:build-iso-app'])
+  })
+})
 
 
 gulp.task('test', ['build', 'bundle'], () => {

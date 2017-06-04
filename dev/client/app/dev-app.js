@@ -13,11 +13,11 @@ import promiseWare from 'redux-promise'
 
 const Whatever = component(kit => {
 
-  kit.handlers({
+  kit.createHandlers({
     whatever: () => {},
   })
 
-  kit.actions(rules => ({
+  kit.createActions(rules => ({
     whatever: rules.section1.UPDATE_GREETING
   }))
 
@@ -34,7 +34,7 @@ const Hello = component(kit => {
     helloWorld: state.section1.helloWorld
   }))
 
-  kit.handlers({
+  kit.createHandlers({
     handleClick: (evt, props, extra) => {
       console.log('handling event', evt, props, extra)
       console.log(props.ref.get('umbrellaDiv'))
@@ -43,10 +43,12 @@ const Hello = component(kit => {
     }
   })
 
-  kit.actions((rules, reqs) => ({
+  kit.createActions((rules, reqs) => ({
     updateGreeting: () => ({ rule: rules.section1.UPDATE_GREETING }),
-    dispatcher: () => (actions) => {
+    dispatcher: () => (actions, getState) => {
+      console.log(getState())
       actions.updateGreeting()
+      actions.example()
     },
     example: () => reqs.get('MY_DATA', '/')
   }))
@@ -56,8 +58,8 @@ const Hello = component(kit => {
       <div ref={props.ref('umbrellaDiv')}>
         <div onClick={props.handlers.handleClick.with('foo')}>{props.helloWorld}</div>
         <Switch>
-          <When ok={kit.data.ok('MY_DATA')}>
-            <div>{kit.data.value('MY_DATA')}</div>
+          <When dataOk={'MY_DATA'}>
+            <div>Some data: {kit.data.value('MY_DATA')}</div>
           </When>
           <Otherwise>
             <div>Nothing to see here, boss.</div>
@@ -111,6 +113,13 @@ const App2 = application(appKit => {
 
   appKit.renderIn('#app2')
 
-  return () => <div>This is a second app on the same page!</div>
+  return () => (
+    <div>
+      This is a second app on the same page!
+      <When params={{foo: 'bar'}}>
+        <span>Params successfully detected!</span>
+      </When>
+    </div>
+  )
 
 })

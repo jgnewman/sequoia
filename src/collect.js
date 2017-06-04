@@ -1,4 +1,4 @@
-const SECRETKEY = Symbol();
+import { INTERNALS } from './utils';
 
 /**
  * Determines whether an item is a match for a collection
@@ -48,21 +48,21 @@ function findMatchFor(options={}, inArray=[]) {
 class Queriable {
 
   constructor(array) {
-    this.__getArray = key => key === SECRETKEY ? array || [] : null;
+    this.__getArray = key => key === INTERNALS.INTERNAL_KEY ? array || [] : null;
   }
 
   /**
    * Get an item from the array or the whole array.
    * NOTE: Returns a NEW array.
    *
-   * @param  {Number|Symbol} index  The index of the item to get.
-   *                                If `SECRETKEY`, returns the original array.
+   * @param  {Number|String} index  The index of the item to get.
+   *                                If `INTERNALS.INTERNAL_KEY`, returns the original array.
    *
    * @return {Any} The retrieved item.
    */
   get(index) {
-    const arr = this.__getArray(SECRETKEY);
-    if (index === SECRETKEY) {
+    const arr = this.__getArray(INTERNALS.INTERNAL_KEY);
+    if (index === INTERNALS.INTERNAL_KEY) {
       return arr;
     } else {
       return index === undefined ? arr.slice() : arr[index];
@@ -75,7 +75,7 @@ class Queriable {
    * @return {Array} The original array.
    */
   getOriginal() {
-    return this.get(SECRETKEY);
+    return this.get(INTERNALS.INTERNAL_KEY);
   }
 
   /**
@@ -86,7 +86,7 @@ class Queriable {
    * @return {Any} The index of the first match.
    */
   getIndexWhere(options) {
-    return findMatchFor(options, this.get(SECRETKEY)).index;
+    return findMatchFor(options, this.get(INTERNALS.INTERNAL_KEY)).index;
   }
 
   /**
@@ -97,7 +97,7 @@ class Queriable {
    * @return {Any} The first match.
    */
   getOneWhere(options) {
-    return findMatchFor(options, this.get(SECRETKEY)).item;
+    return findMatchFor(options, this.get(INTERNALS.INTERNAL_KEY)).item;
   }
 
   /**
@@ -109,7 +109,7 @@ class Queriable {
    */
   getAllWhere(options) {
     const keys = Object.keys(options);
-    return this.get(SECRETKEY).filter(item => {
+    return this.get(INTERNALS.INTERNAL_KEY).filter(item => {
       return isMatch(item, options, keys);
     })
   }
@@ -118,8 +118,8 @@ class Queriable {
    * Updates matches in an array of objects.
    * NOTE: Returns a NEW array.
    *
-   * @param  {Object|Symbol}   options  Properties to match on each object.
-   *                                    If `SECRETKEY`, we'll automatch every item.
+   * @param  {Object|String}   options  Properties to match on each object.
+   *                                    If `INTERNALS.INTERNAL_KEY`, we'll automatch every item.
    * @param  {Object|Function} updates  The updates to make to matching objects.
    *                                    If a function, takes the item to update.
    *                                    Should return a new version of the item.
@@ -131,8 +131,8 @@ class Queriable {
     const updatesIsFn = typeof updates === 'function';
     const updateKeys  = updatesIsFn ? null : Object.keys(updates);
 
-    return this.get(SECRETKEY).map(item => {
-      if (options === SECRETKEY || isMatch(item, options, optionKeys)) {
+    return this.get(INTERNALS.INTERNAL_KEY).map(item => {
+      if (options === INTERNALS.INTERNAL_KEY || isMatch(item, options, optionKeys)) {
         if (updatesIsFn) {
           return updates(item);
         } else {
@@ -157,7 +157,7 @@ class Queriable {
    * @return {Array} Contains all the objects; contains the updates.
    */
   updateOneWhere(options, updates) {
-    const found = findMatchFor(options, this.get(SECRETKEY));
+    const found = findMatchFor(options, this.get(INTERNALS.INTERNAL_KEY));
     const updatesIsFn = typeof updates === 'function';
     const arrCopy = this.get();
 
@@ -191,7 +191,7 @@ class Queriable {
    * @return {Array} Contains all of the updates.
    */
   updateAll(updates) {
-    return this.updateAllWhere(SECRETKEY, updates);
+    return this.updateAllWhere(INTERNALS.INTERNAL_KEY, updates);
   }
 
   /**
@@ -203,7 +203,7 @@ class Queriable {
    * @return {Array} A new array where an item has been removed.
    */
   subtract(index) {
-    const arr = this.get(SECRETKEY).slice();
+    const arr = this.get(INTERNALS.INTERNAL_KEY).slice();
     arr.splice(index, 1);
     return arr;
   }
@@ -218,7 +218,7 @@ class Queriable {
    */
   subtractAllWhere(options) {
     const keys = Object.keys(options);
-    return this.get(SECRETKEY).filter(item => {
+    return this.get(INTERNALS.INTERNAL_KEY).filter(item => {
       if (isMatch(item, options, keys)) {
         return false;
       }
@@ -235,7 +235,7 @@ class Queriable {
    * @return {Array} A new array where an item has been removed.
    */
   subtractOneWhere(options) {
-    const found = findMatchFor(options, this.get(SECRETKEY));
+    const found = findMatchFor(options, this.get(INTERNALS.INTERNAL_KEY));
     const arrCopy = this.get();
     if (found.index > -1) {
       arrCopy.splice(found.index, 1);
@@ -249,7 +249,7 @@ class Queriable {
    * @return {Number} The number of items in the array.
    */
   count() {
-    return this.get(SECRETKEY).length;
+    return this.get(INTERNALS.INTERNAL_KEY).length;
   }
 
   /**
@@ -265,14 +265,14 @@ class Queriable {
    * Get the first item in the array.
    */
   first() {
-    return this.get(SECRETKEY)[0];
+    return this.get(INTERNALS.INTERNAL_KEY)[0];
   }
 
   /**
    * Get ALL BUT the first item in the array.
    */
   rest() {
-    const arr = this.get(SECRETKEY);
+    const arr = this.get(INTERNALS.INTERNAL_KEY);
     return arr.slice(1);
   }
 
@@ -280,7 +280,7 @@ class Queriable {
    * Get the last item in the array.
    */
   last() {
-    const arr = this.get(SECRETKEY);
+    const arr = this.get(INTERNALS.INTERNAL_KEY);
     return arr[arr.length - 1];
   }
 
@@ -288,7 +288,7 @@ class Queriable {
    * Get ALL BUT the last item in the array.
    */
   lead() {
-    const arr = this.get(SECRETKEY);
+    const arr = this.get(INTERNALS.INTERNAL_KEY);
     return arr.slice(0, arr.length - 1);
   }
 
@@ -296,7 +296,7 @@ class Queriable {
    * Get a random item in the array.
    */
   random() {
-    const arr = this.get(SECRETKEY);
+    const arr = this.get(INTERNALS.INTERNAL_KEY);
     return arr[Math.floor(Math.random() * arr.length)];
   }
 
@@ -309,7 +309,7 @@ class Queriable {
    * @return {Array} Includees the new item.
    */
   prepend(item) {
-    const arr = this.get(SECRETKEY).slice();
+    const arr = this.get(INTERNALS.INTERNAL_KEY).slice();
     arr.unshift(item);
     return arr;
   }
@@ -323,7 +323,7 @@ class Queriable {
    * @return {Array} Includees the new item.
    */
   append(item) {
-    const arr = this.get(SECRETKEY).slice();
+    const arr = this.get(INTERNALS.INTERNAL_KEY).slice();
     arr.push(item);
     return arr;
   }

@@ -3,7 +3,7 @@
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.StoreWrapper = exports.secretStoreKey = undefined;
+exports.StoreWrapper = undefined;
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
@@ -21,6 +21,8 @@ var _constants = require('redux-persist/constants');
 
 var _utils = require('./utils');
 
+var _data = require('./data');
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
@@ -33,11 +35,6 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
  * Holds references to hooks to run when stores are created.
  */
 var storeHooks = [];
-
-/*
- * For any internal store related stuff.
- */
-var secretStoreKey = exports.secretStoreKey = Symbol();
 
 /**
  * @class
@@ -80,6 +77,27 @@ var StoreWrapper = exports.StoreWrapper = function () {
     }
 
     /**
+     * Returns a copy of the state object without '@@' keys.
+     *
+     * @param  {String}  secretKey For retrieving the state.
+     *
+     * @return {Object} The clean state.
+     */
+
+  }, {
+    key: 'getClean',
+    value: function getClean(secretKey) {
+      var state = this.get(secretKey).getState();
+      var output = {};
+      (0, _utils.mapObject)(state, function (val, key) {
+        if (key.slice(0, 2) !== '@@') {
+          output[key] = val;
+        }
+      });
+      return output;
+    }
+
+    /**
      * Creates a new namespace on the initialState.
      *
      * @param  {String} name The name of the namespace.
@@ -96,9 +114,9 @@ var StoreWrapper = exports.StoreWrapper = function () {
     /**
      * Creates a new micro-reducer for this store.
      *
-     * @param  {String|Symbol} name      The action type associated with the reducer.
-     * @param  {String|Symbol} substate  The namespace on the state associated with the rule.
-     * @param  {Function}      reducer   How to reduce this action. Takes update, substate, payload.
+     * @param  {String}   name      The action type associated with the reducer.
+     * @param  {String}   substate  The namespace on the state associated with the rule.
+     * @param  {Function} reducer   How to reduce this action. Takes update, substate, payload.
      *
      * @return {undefined}
      */
@@ -133,7 +151,7 @@ var StoreWrapper = exports.StoreWrapper = function () {
   }, {
     key: 'dispatch',
     value: function dispatch(action) {
-      var store = this.get(secretStoreKey);
+      var store = this.get(_utils.INTERNALS.INTERNAL_KEY);
       store.dispatch(action);
     }
 
@@ -190,9 +208,9 @@ var StoreWrapper = exports.StoreWrapper = function () {
          * Afterward, attach the new substate to the full state.
          */
         var newSubstate = rule.reducer(state[rule.substate] || {}, action.payload);
-        return Object.assign({}, state, _defineProperty({}, rule.substate, newSubstate));
+        return (0, _utils.merge)(state, _defineProperty({}, rule.substate, newSubstate));
       } else if (action.type === _constants.REHYDRATE) {
-        var _Object$assign2;
+        var _merge2;
 
         /*
          * In case anything is listening for the reydrated event, this is where
@@ -204,9 +222,10 @@ var StoreWrapper = exports.StoreWrapper = function () {
 
         /*
          * When autoPersist attempts to rehydrate, clear out any existing
-         * data and don't overwrite hash path stuff.
+         * data and replace it with any preload data we may have.
+         * Don't overwrite hash path stuff.
          */
-        return Object.assign({}, state, (_Object$assign2 = {}, _defineProperty(_Object$assign2, _utils.INTERNALS.DATA_REF, {}), _defineProperty(_Object$assign2, _utils.INTERNALS.HASH_PATH, Object.assign({}, state[_utils.INTERNALS.HASH_PATH])), _Object$assign2));
+        return (0, _utils.merge)(state, (_merge2 = {}, _defineProperty(_merge2, _utils.INTERNALS.DATA_REF, (0, _utils.merge)(state[_utils.INTERNALS.DATA_REF])), _defineProperty(_merge2, _utils.INTERNALS.HASH_PATH, (0, _utils.merge)(state[_utils.INTERNALS.HASH_PATH])), _merge2));
 
         /*
          * If no rule for the action type exists, return the state.
@@ -234,6 +253,14 @@ var StoreWrapper = exports.StoreWrapper = function () {
       middleware.unshift(_reduxThunk2.default);
 
       /*
+       * Preload data into the initial state
+       */
+      var preload = _utils.win[_utils.INTERNALS.PRELOAD_REF] || {};
+      this.initialState[_utils.INTERNALS.DATA_REF] = (0, _utils.mapObject)(preload, function (data) {
+        return (0, _data.createSuccessState)(200, data);
+      });
+
+      /*
        * Create the actual store.
        */
       var store = (0, _redux.createStore)(this.reduce.bind(this), this.initialState, this.compose(_redux.applyMiddleware.apply(undefined, _toConsumableArray(middleware)), this.settings.disableAutoPersist ? function (next) {
@@ -246,7 +273,7 @@ var StoreWrapper = exports.StoreWrapper = function () {
        * Provide means to access the store if we have a secret key for it.
        */
       this.store = function (secretKey) {
-        return secretKey === secretStoreKey ? store : null;
+        return secretKey === _utils.INTERNALS.INTERNAL_KEY ? store : null;
       };
 
       /*

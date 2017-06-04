@@ -5,7 +5,7 @@ import PropTypes from 'prop-types';
 import { Provider } from 'react-redux';
 
 import { INTERNALS, mapObject, createError, subscribe } from './utils';
-import { secretStoreKey, StoreWrapper } from './store';
+import { StoreWrapper } from './store';
 import { createRestRule } from './data';
 import { createHashRule } from './routing';
 
@@ -34,7 +34,10 @@ class CustomProvider extends React.Component {
    * that will contain the store wrapper instance.
    */
   getChildContext() {
-    return { [INTERNALS.STORE_REF]: this.props[INTERNALS.STORE_REF] };
+    return {
+      [INTERNALS.STORE_REF]: this.props[INTERNALS.STORE_REF],
+      [INTERNALS.LOC_REF]: this.props[INTERNALS.LOC_REF]
+    };
   }
 
   /*
@@ -42,7 +45,7 @@ class CustomProvider extends React.Component {
    */
   render() {
     return (
-      <Provider store={this.props[INTERNALS.STORE_REF].get(secretStoreKey)}>
+      <Provider store={this.props[INTERNALS.STORE_REF].get(INTERNALS.INTERNAL_KEY)}>
         {Children.only(this.props.children)}
       </Provider>
     )
@@ -53,7 +56,8 @@ class CustomProvider extends React.Component {
  * Make sure the "@@SQ_Store" context prop always exists.
  */
 CustomProvider.childContextTypes = {
-  [INTERNALS.STORE_REF]: PropTypes.object.isRequired
+  [INTERNALS.STORE_REF]: PropTypes.object.isRequired,
+  [INTERNALS.LOC_REF]: PropTypes.object
 };
 
 /**
@@ -84,6 +88,7 @@ class AppKit {
 
   /**
    * Allow the user to determine where to render their application.
+   * Does nothing if called on the server side.
    *
    * @param  {String|Element} target The html target for rendering.
    *
@@ -92,6 +97,9 @@ class AppKit {
   renderIn(target) {
     if (this.cache.target) {
       throw createError('The `renderIn` function can only be called once per application.')
+    }
+    if (typeof document === 'undefined') {
+      return this;
     }
     this.cache.target = typeof target === 'string' ? document.querySelector(target) : target;
     return this;
@@ -156,15 +164,26 @@ export function application(generator) {
   }
 
   /*
+   * Create the final, wrapped application component.
+   */
+  const SequoiaApplication = props => {
+    return React.createElement(
+      CustomProvider,
+      {
+        [INTERNALS.STORE_REF]: storeWrapper,
+        [INTERNALS.LOC_REF]: props.locationContext || null
+      },
+      React.createElement(Application, props)
+    );
+  }
+
+  /*
    * Create the function that will render the application.
    * When we render, pass the storeWrapper down through the
    * context tree.
    */
   const render = () => {
-    ReactDOM.render(
-      React.createElement(CustomProvider, { [INTERNALS.STORE_REF]: storeWrapper }, <Application />),
-      appCache.target
-    )
+    ReactDOM.render(<SequoiaApplication />, appCache.target)
   }
 
   /*
@@ -202,12 +221,19 @@ export function application(generator) {
   }
 
   /*
-   * Render the application either immediately or after rehydration has
-   * completed.
+   * If we're in the browser, render the application either immediately or
+   * after rehydration has completed.
    */
-  if (shouldDelayRender(appCache.config)) {
-    subscribe(INTERNALS.REHYDRATED, render);
-  } else {
-    render();
+  if (typeof window !== 'undefined') {
+    if (shouldDelayRender(appCache.config)) {
+      subscribe(INTERNALS.REHYDRATED, render);
+    } else {
+      render();
+    }
   }
+
+  /*
+   * Return a legit React component so we can do server side rendering.
+   */
+  return SequoiaApplication;
 }

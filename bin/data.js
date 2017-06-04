@@ -7,6 +7,10 @@ exports.DataAPI = exports.requestsPackage = undefined;
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
+exports.createDefaultState = createDefaultState;
+exports.createPendingState = createPendingState;
+exports.createErrorState = createErrorState;
+exports.createSuccessState = createSuccessState;
 exports.createRestRule = createRestRule;
 exports.createRestfulAction = createRestfulAction;
 
@@ -15,8 +19,6 @@ var _axios = require('axios');
 var _axios2 = _interopRequireDefault(_axios);
 
 var _utils = require('./utils');
-
-var _store = require('./store');
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -131,6 +133,78 @@ function performRestfulAction(settings, extras, dispatch) {
 }
 
 /**
+ * Creates a default data state.
+ *
+ * @return {Object} A data state object.
+ */
+function createDefaultState() {
+  return {
+    ok: false,
+    status: null,
+    errorMessage: null,
+    data: null,
+    pending: false,
+    requested: false
+  };
+}
+
+/**
+ * Creates a pending data state.
+ *
+ * @param {Object} prevState The previous state of this data
+ *
+ * @return {Object} A data state object.
+ */
+function createPendingState(prevState) {
+  return {
+    ok: false,
+    status: prevState.status || null,
+    errorMessage: prevState.errorMessage || null,
+    data: prevState.data || null,
+    pending: true,
+    requested: true
+  };
+}
+
+/**
+ * Creates an errored data state.
+ *
+ * @param {Number} status The response status code.
+ * @param {String} errMsg The error message.
+ *
+ * @return {Object} A data state object.
+ */
+function createErrorState(status, errMsg) {
+  return {
+    ok: false,
+    status: status,
+    errorMessage: errMsg,
+    data: null,
+    pending: false,
+    requested: true
+  };
+}
+
+/**
+ * Creates a successful data state.
+ *
+ * @param {Number} status The response status code.
+ * @param {Any}    data   The returned data.
+ *
+ * @return {Object} A data state object.
+ */
+function createSuccessState(status, data) {
+  return {
+    ok: true,
+    status: status,
+    errorMessage: null,
+    data: data,
+    pending: false,
+    requested: true
+  };
+}
+
+/**
  * Generates a reducer rule for working with data.
  *
  * @return {Function} Will be triggered by data actions.
@@ -147,46 +221,17 @@ function createRestRule() {
     switch (subrule) {
 
       case _utils.INTERNALS.DATA_DEFAULT:
-        return (0, _utils.merge)(substate, _defineProperty({}, id, {
-          ok: false,
-          status: null,
-          errorMessage: null,
-          data: null,
-          pending: false,
-          requested: false
-        }));
+        return (0, _utils.merge)(substate, _defineProperty({}, id, createDefaultState()));
 
       case _utils.INTERNALS.DATA_PENDING:
         var prevState = substate[id] || {};
-        return (0, _utils.merge)(substate, _defineProperty({}, id, {
-          ok: false,
-          status: prevState.status || null,
-          errorMessage: prevState.errorMessage || null,
-          data: prevState.data || null,
-          pending: true,
-          requested: true
-        }));
+        return (0, _utils.merge)(substate, _defineProperty({}, id, createPendingState(prevState)));
 
       case _utils.INTERNALS.DATA_ERROR:
-        throw new Error();
-        return (0, _utils.merge)(substate, _defineProperty({}, id, {
-          ok: false,
-          status: status,
-          errorMessage: errMsg,
-          data: null,
-          pending: false,
-          requested: true
-        }));
+        return (0, _utils.merge)(substate, _defineProperty({}, id, createErrorState(status, errMsg)));
 
       case _utils.INTERNALS.DATA_SUCCESS:
-        return (0, _utils.merge)(substate, _defineProperty({}, id, {
-          ok: true,
-          status: status,
-          errorMessage: null,
-          data: data,
-          pending: false,
-          requested: true
-        }));
+        return (0, _utils.merge)(substate, _defineProperty({}, id, createSuccessState(status, data)));
 
       default:
         return (0, _utils.merge)(substate);
@@ -207,8 +252,10 @@ function createRestfulAction(settings) {
 
   /*
    * Create an action thunk.
+   * The first two arguments are the actions associated with this component and
+   * the getState function. We don't need either of those, just the native dispatch.
    */
-  var thunk = function thunk(dispatch) {
+  var thunk = function thunk(_, __, dispatch) {
     return performRestfulAction(settings, extras, dispatch);
   };
 
@@ -339,7 +386,7 @@ var DataAPI = exports.DataAPI = function () {
 
   /*
    * Intantiate the class.
-   * `getStoreWrapper` must be called with `secretStoreKey`
+   * `getStoreWrapper` must be called with `INTERNALS.INTERNAL_KEY`
    */
   function DataAPI(getStoreWrapper) {
     _classCallCheck(this, DataAPI);
@@ -370,7 +417,7 @@ var DataAPI = exports.DataAPI = function () {
   }, {
     key: 'value',
     value: function value(id) {
-      var state = this.__getDataState(_store.secretStoreKey, id);
+      var state = this.__getDataState(_utils.INTERNALS.INTERNAL_KEY, id);
       return state ? state.data : null;
     }
 
@@ -385,7 +432,7 @@ var DataAPI = exports.DataAPI = function () {
   }, {
     key: 'pending',
     value: function pending(id) {
-      var state = this.__getDataState(_store.secretStoreKey, id);
+      var state = this.__getDataState(_utils.INTERNALS.INTERNAL_KEY, id);
       return state ? state.pending : false;
     }
 
@@ -400,7 +447,7 @@ var DataAPI = exports.DataAPI = function () {
   }, {
     key: 'requested',
     value: function requested(id) {
-      var state = this.__getDataState(_store.secretStoreKey, id);
+      var state = this.__getDataState(_utils.INTERNALS.INTERNAL_KEY, id);
       return state ? state.requested : false;
     }
 
@@ -418,7 +465,7 @@ var DataAPI = exports.DataAPI = function () {
   }, {
     key: 'ok',
     value: function ok(id) {
-      var state = this.__getDataState(_store.secretStoreKey, id);
+      var state = this.__getDataState(_utils.INTERNALS.INTERNAL_KEY, id);
       return state ? state.ok : false;
     }
 
@@ -435,7 +482,7 @@ var DataAPI = exports.DataAPI = function () {
   }, {
     key: 'notOk',
     value: function notOk(id) {
-      var state = this.__getDataState(_store.secretStoreKey, id);
+      var state = this.__getDataState(_utils.INTERNALS.INTERNAL_KEY, id);
       return typeof state.status === 'number' && (state.status < 200 || state.status > 299);
     }
 
@@ -450,7 +497,7 @@ var DataAPI = exports.DataAPI = function () {
   }, {
     key: 'status',
     value: function status(id) {
-      var state = this.__getDataState(_store.secretStoreKey, id);
+      var state = this.__getDataState(_utils.INTERNALS.INTERNAL_KEY, id);
       return state ? state.status : null;
     }
 
@@ -465,7 +512,7 @@ var DataAPI = exports.DataAPI = function () {
   }, {
     key: 'errorMsg',
     value: function errorMsg(id) {
-      var state = this.__getDataState(_store.secretStoreKey, id);
+      var state = this.__getDataState(_utils.INTERNALS.INTERNAL_KEY, id);
       return state ? state.errorMessage : null;
     }
 
@@ -480,7 +527,7 @@ var DataAPI = exports.DataAPI = function () {
   }, {
     key: 'reset',
     value: function reset(id) {
-      var storeWrapper = this.__getStoreWrapper(_store.secretStoreKey);
+      var storeWrapper = this.__getStoreWrapper(_utils.INTERNALS.INTERNAL_KEY);
       storeWrapper.dispatch({
         type: ACTION_STRING,
         payload: {

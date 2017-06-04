@@ -1,5 +1,5 @@
-const symbol1 = Symbol();
-const symbol2 = Symbol();
+const symbol1 = '@@SQ_SYMBOL_TOGGLE_1';
+const symbol2 = '@@SQ_SYMBOL_TOGGLE_2';
 
 const events = {};
 
@@ -9,7 +9,9 @@ const events = {};
  * @type {Object}
  */
 export const INTERNALS = {
+  LOC_REF      : "@@SQ_Location",
   STORE_REF    : "@@SQ_Store",
+  PRELOAD_REF  : "@@SQ_Preload",
   DATA_REF     : "@@SQ_Data",
   DATA_RULE    : "@@SQ_DataRule",
   DATA_DEFAULT : "@@SQ_DataDefault",
@@ -17,7 +19,8 @@ export const INTERNALS = {
   DATA_ERROR   : "@@SQ_DataError",
   DATA_SUCCESS : "@@SQ_DataSuccess",
   HASH_PATH    : "@@SQ_HashPath",
-  REHYDRATED   : "@@SQ_Rehydrated"
+  REHYDRATED   : "@@SQ_Rehydrated",
+  INTERNAL_KEY : "@@SQ_InternalKey"
 }
 
 /*

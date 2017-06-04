@@ -1,7 +1,6 @@
 import axios from 'axios';
 
 import { INTERNALS, merge } from './utils';
-import { secretStoreKey } from './store';
 
 /*
 
@@ -105,6 +104,77 @@ function performRestfulAction(settings, extras, dispatch) {
   });
 }
 
+/**
+ * Creates a default data state.
+ *
+ * @return {Object} A data state object.
+ */
+export function createDefaultState() {
+  return {
+    ok           : false,
+    status       : null,
+    errorMessage : null,
+    data         : null,
+    pending      : false,
+    requested    : false
+  }
+}
+
+/**
+ * Creates a pending data state.
+ *
+ * @param {Object} prevState The previous state of this data
+ *
+ * @return {Object} A data state object.
+ */
+export function createPendingState(prevState) {
+  return {
+    ok           : false,
+    status       : prevState.status       || null,
+    errorMessage : prevState.errorMessage || null,
+    data         : prevState.data         || null,
+    pending      : true,
+    requested    : true
+  }
+}
+
+/**
+ * Creates an errored data state.
+ *
+ * @param {Number} status The response status code.
+ * @param {String} errMsg The error message.
+ *
+ * @return {Object} A data state object.
+ */
+export function createErrorState(status, errMsg) {
+  return {
+    ok           : false,
+    status       : status,
+    errorMessage : errMsg,
+    data         : null,
+    pending      : false,
+    requested    : true
+  }
+}
+
+/**
+ * Creates a successful data state.
+ *
+ * @param {Number} status The response status code.
+ * @param {Any}    data   The returned data.
+ *
+ * @return {Object} A data state object.
+ */
+export function createSuccessState(status, data) {
+  return {
+    ok           : true,
+    status       : status,
+    errorMessage : null,
+    data         : data,
+    pending      : false,
+    requested    : true
+  }
+}
 
 /**
  * Generates a reducer rule for working with data.
@@ -124,52 +194,23 @@ export function createRestRule() {
 
       case INTERNALS.DATA_DEFAULT:
         return merge(substate, {
-          [id]: {
-            ok           : false,
-            status       : null,
-            errorMessage : null,
-            data         : null,
-            pending      : false,
-            requested    : false
-          }
+          [id]: createDefaultState()
         })
 
       case INTERNALS.DATA_PENDING:
         const prevState = substate[id] || {};
         return merge(substate, {
-          [id]: {
-            ok           : false,
-            status       : prevState.status       || null,
-            errorMessage : prevState.errorMessage || null,
-            data         : prevState.data         || null,
-            pending      : true,
-            requested    : true
-          }
+          [id]: createPendingState(prevState)
         })
 
       case INTERNALS.DATA_ERROR:
-        throw new Error()
         return merge(substate, {
-          [id]: {
-            ok           : false,
-            status       : status,
-            errorMessage : errMsg,
-            data         : null,
-            pending      : false,
-            requested    : true
-          }
+          [id]: createErrorState(status, errMsg)
         })
 
       case INTERNALS.DATA_SUCCESS:
         return merge(substate, {
-          [id]: {
-            ok           : true,
-            status       : status,
-            errorMessage : null,
-            data         : data,
-            pending      : false,
-            requested    : true
-          }
+          [id]: createSuccessState(status, data)
         })
 
       default:
@@ -191,8 +232,10 @@ export function createRestfulAction(settings) {
 
   /*
    * Create an action thunk.
+   * The first two arguments are the actions associated with this component and
+   * the getState function. We don't need either of those, just the native dispatch.
    */
-  const thunk = (dispatch) => {
+  const thunk = (_, __, dispatch) => {
     return performRestfulAction(settings, extras, dispatch)
   }
 
@@ -327,7 +370,7 @@ export class DataAPI {
 
   /*
    * Intantiate the class.
-   * `getStoreWrapper` must be called with `secretStoreKey`
+   * `getStoreWrapper` must be called with `INTERNALS.INTERNAL_KEY`
    */
   constructor(getStoreWrapper) {
     this.__getStoreWrapper = getStoreWrapper;
@@ -351,7 +394,7 @@ export class DataAPI {
    * @return {Serializable} The data if it exists or null.
    */
   value(id) {
-    const state = this.__getDataState(secretStoreKey, id);
+    const state = this.__getDataState(INTERNALS.INTERNAL_KEY, id);
     return state ? state.data : null;
   }
 
@@ -363,7 +406,7 @@ export class DataAPI {
    * @return {Boolean} Whether we are awaiting a response.
    */
   pending(id) {
-    const state = this.__getDataState(secretStoreKey, id);
+    const state = this.__getDataState(INTERNALS.INTERNAL_KEY, id);
     return state ? state.pending : false;
   }
 
@@ -375,7 +418,7 @@ export class DataAPI {
    * @return {Boolean} Whether the transaction was initiated.
    */
   requested(id) {
-    const state = this.__getDataState(secretStoreKey, id);
+    const state = this.__getDataState(INTERNALS.INTERNAL_KEY, id);
     return state ? state.requested : false;
   }
 
@@ -390,7 +433,7 @@ export class DataAPI {
    * @return {Boolean}
    */
   ok(id) {
-    const state = this.__getDataState(secretStoreKey, id);
+    const state = this.__getDataState(INTERNALS.INTERNAL_KEY, id);
     return state ? state.ok : false;
   }
 
@@ -404,7 +447,7 @@ export class DataAPI {
    * @return {Boolean}
    */
   notOk(id) {
-    const state = this.__getDataState(secretStoreKey, id);
+    const state = this.__getDataState(INTERNALS.INTERNAL_KEY, id);
     return typeof state.status === 'number' && (state.status < 200 || state.status > 299);
   }
 
@@ -416,7 +459,7 @@ export class DataAPI {
    * @return {Number|Null} The status code if it exists or null if not.
    */
   status(id) {
-    const state = this.__getDataState(secretStoreKey, id);
+    const state = this.__getDataState(INTERNALS.INTERNAL_KEY, id);
     return state ? state.status : null;
   }
 
@@ -428,7 +471,7 @@ export class DataAPI {
    * @return {String|Null} The message if it exists or null
    */
   errorMsg(id) {
-    const state = this.__getDataState(secretStoreKey, id);
+    const state = this.__getDataState(INTERNALS.INTERNAL_KEY, id);
     return state ? state.errorMessage : null;
   }
 
@@ -440,7 +483,7 @@ export class DataAPI {
    * @return {undefined}
    */
   reset(id) {
-    const storeWrapper = this.__getStoreWrapper(secretStoreKey);
+    const storeWrapper = this.__getStoreWrapper(INTERNALS.INTERNAL_KEY);
     storeWrapper.dispatch({
       type: ACTION_STRING,
       payload: {

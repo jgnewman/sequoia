@@ -3,7 +3,7 @@
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.Switch = exports.Otherwise = exports.When = exports.Redirect = undefined;
+exports.Preload = exports.Switch = exports.Otherwise = exports.When = exports.Redirect = undefined;
 
 var _react = require('react');
 
@@ -36,13 +36,13 @@ var Redirect = exports.Redirect = (0, _component.component)(function () {
 /**
  * A component for rendering children under some condition.
  */
-var When = exports.When = (0, _component.component)(function () {
+var When = exports.When = (0, _component.component)(function (kit) {
   return function (props) {
 
     /*
      * Throw an error if props are malformed.
      */
-    var vetted = props.preVet || (0, _routing.vetProps)(props);
+    var vetted = props.preVet || (0, _routing.vetProps)(props, kit, this.context[_utils.INTERNALS.LOC_REF]);
 
     /*
      * If the props didn't resolve in a way that would allow
@@ -93,7 +93,7 @@ var Otherwise = exports.Otherwise = (0, _component.component)(function () {
       throw (0, _utils.createError)('\n          The `Otherwise` component can only be used as a child of the\n          `Switch` component. Otherwise it\'s redundant.\n        ');
     } else {
       var cleanProps = (0, _utils.removeProps)(props, props.preVet.exclusives);
-      var newProps = Object.assign({}, cleanProps, { ok: true });
+      var newProps = (0, _utils.merge)(cleanProps, { ok: true });
       return React.createElement(When, newProps, props.children);
     }
   };
@@ -105,8 +105,10 @@ var Otherwise = exports.Otherwise = (0, _component.component)(function () {
  *
  * @param {Object} props The component props.
  */
-var Switch = exports.Switch = (0, _component.component)(function () {
+var Switch = exports.Switch = (0, _component.component)(function (kit) {
   return function (props) {
+    var _this = this;
+
     var chosen = null;
     var vetting = void 0;
 
@@ -115,7 +117,7 @@ var Switch = exports.Switch = (0, _component.component)(function () {
      * one that successfully vets.
      */
     (0, _routing.arrayifyChildren)(props.children).some(function (child) {
-      var vetted = (0, _routing.vetProps)(child.props, child.type === Otherwise);
+      var vetted = (0, _routing.vetProps)(child.props, kit, _this.context[_utils.INTERNALS.LOC_REF], child.type === Otherwise);
       if (vetted.resolves) {
         chosen = child;
         vetting = vetted;
@@ -126,6 +128,38 @@ var Switch = exports.Switch = (0, _component.component)(function () {
     /*
      * Return a clone of the element so we don't need to vet it again.
      */
-    return !chosen ? null : React.cloneElement(chosen, Object.assign({}, chosen.props, { preVet: vetting }), chosen.props.children);
+    return !chosen ? null : React.cloneElement(chosen, (0, _utils.merge)(chosen.props, { preVet: vetting }), chosen.props.children);
+  };
+});
+
+/**
+ * Writes pre-fetched data into the DOM.
+ *
+ * @param {Object} props The component props.
+ */
+var Preload = exports.Preload = (0, _component.component)(function () {
+  return function (props) {
+
+    /*
+     * By default, render an empty object.
+     */
+    var toRender = "{}";
+
+    /*
+     * If we get data, pass it through if its a string or
+     * stringify it if its an object.
+     */
+    if (props.data) {
+      if (typeof props.data === 'string') {
+        toRender = props.data;
+      } else {
+        toRender = JSON.stringify(props.data);
+      }
+    }
+
+    /*
+     * Spit out a script tag.
+     */
+    return React.createElement('script', { dangerouslySetInnerHTML: { __html: 'window[\'' + _utils.INTERNALS.PRELOAD_REF + '\'] = ' + toRender } });
   };
 });

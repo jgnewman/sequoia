@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 
 Object.defineProperty(exports, "__esModule", {
   value: true
@@ -10,8 +10,8 @@ exports.removeProps = removeProps;
 exports.subscribe = subscribe;
 exports.publish = publish;
 exports.merge = merge;
-var symbol1 = Symbol();
-var symbol2 = Symbol();
+var symbol1 = '@@SQ_SYMBOL_TOGGLE_1';
+var symbol2 = '@@SQ_SYMBOL_TOGGLE_2';
 
 var events = {};
 
@@ -21,7 +21,9 @@ var events = {};
  * @type {Object}
  */
 var INTERNALS = exports.INTERNALS = {
+  LOC_REF: "@@SQ_Location",
   STORE_REF: "@@SQ_Store",
+  PRELOAD_REF: "@@SQ_Preload",
   DATA_REF: "@@SQ_Data",
   DATA_RULE: "@@SQ_DataRule",
   DATA_DEFAULT: "@@SQ_DataDefault",
@@ -29,7 +31,8 @@ var INTERNALS = exports.INTERNALS = {
   DATA_ERROR: "@@SQ_DataError",
   DATA_SUCCESS: "@@SQ_DataSuccess",
   HASH_PATH: "@@SQ_HashPath",
-  REHYDRATED: "@@SQ_Rehydrated"
+  REHYDRATED: "@@SQ_Rehydrated",
+  INTERNAL_KEY: "@@SQ_InternalKey"
 };
 
 /*

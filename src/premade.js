@@ -1,7 +1,7 @@
 import { Children } from 'react';
 
 import { requestsPackage } from './data';
-import { INTERNALS, removeProps, createError, win } from './utils';
+import { INTERNALS, removeProps, createError, win, merge } from './utils';
 import { vetProps, arrayifyChildren } from './routing';
 import { component } from './component';
 
@@ -30,13 +30,13 @@ export const Redirect = component(() => {
 /**
  * A component for rendering children under some condition.
  */
-export const When = component(() => {
-  return props => {
+export const When = component(kit => {
+  return function (props) {
 
     /*
      * Throw an error if props are malformed.
      */
-    const vetted = props.preVet || vetProps(props);
+    const vetted = props.preVet || vetProps(props, kit, this.context[INTERNALS.LOC_REF]);
 
     /*
      * If the props didn't resolve in a way that would allow
@@ -102,7 +102,7 @@ export const Otherwise = component(() => {
       );
     } else {
       const cleanProps = removeProps(props, props.preVet.exclusives);
-      const newProps = Object.assign({}, cleanProps, { ok: true });
+      const newProps = merge(cleanProps, { ok: true });
       return React.createElement(When, newProps, props.children);
     }
   }
@@ -115,8 +115,8 @@ export const Otherwise = component(() => {
  *
  * @param {Object} props The component props.
  */
-export const Switch = component(() => {
-  return props => {
+export const Switch = component(kit => {
+  return function (props) {
     let chosen = null;
     let vetting;
 
@@ -125,7 +125,7 @@ export const Switch = component(() => {
      * one that successfully vets.
      */
     arrayifyChildren(props.children).some(child => {
-      const vetted = vetProps(child.props, child.type === Otherwise);
+      const vetted = vetProps(child.props, kit, this.context[INTERNALS.LOC_REF], child.type === Otherwise);
       if (vetted.resolves) {
         chosen = child;
         vetting = vetted;
@@ -138,8 +138,40 @@ export const Switch = component(() => {
      */
     return !chosen ? null : React.cloneElement(
       chosen,
-      Object.assign({}, chosen.props, { preVet: vetting }),
+      merge(chosen.props, { preVet: vetting }),
       chosen.props.children
     );
   }
+})
+
+/**
+ * Writes pre-fetched data into the DOM.
+ *
+ * @param {Object} props The component props.
+ */
+export const Preload = component(() => props => {
+
+  /*
+   * By default, render an empty object.
+   */
+  let toRender = "{}";
+
+  /*
+   * If we get data, pass it through if its a string or
+   * stringify it if its an object.
+   */
+  if (props.data) {
+    if (typeof props.data === 'string') {
+      toRender = props.data;
+    } else {
+      toRender = JSON.stringify(props.data)
+    }
+  }
+
+  /*
+   * Spit out a script tag.
+   */
+  return (
+    <script dangerouslySetInnerHTML={{__html: `window['${INTERNALS.PRELOAD_REF}'] = ${toRender}`}}></script>
+  )
 })

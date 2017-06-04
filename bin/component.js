@@ -114,10 +114,10 @@ var ComponentKit = function () {
      */
 
   }, {
-    key: 'handlers',
-    value: function handlers(_handlers) {
+    key: 'createHandlers',
+    value: function createHandlers(handlers) {
       this.__cache.handlers = this.__cache.handlers || {};
-      Object.assign(this.__cache.handlers, _handlers);
+      Object.assign(this.__cache.handlers, handlers);
       return this;
     }
 
@@ -130,8 +130,8 @@ var ComponentKit = function () {
      */
 
   }, {
-    key: 'actions',
-    value: function actions(infuser) {
+    key: 'createActions',
+    value: function createActions(infuser) {
       this.__cache.actionInfusers = this.__cache.actionInfusers || [];
       this.__cache.actionInfusers.push(infuser);
       return this;
@@ -218,7 +218,9 @@ function createDispatcher(storeWrapper, actionProps, fn) {
     if (typeof actionType === 'function') {
       var origActionType = actionType;
       actionType = function actionType(dispatch) {
-        return origActionType(actionProps);
+        return origActionType(actionProps, function () {
+          return storeWrapper.getClean(_utils.INTERNALS.INTERNAL_KEY);
+        }, dispatch);
       };
     }
 
@@ -247,9 +249,11 @@ function createDispatcher(storeWrapper, actionProps, fn) {
  * @return {Component} A React component.
  */
 function component(generator) {
+  var _Component$contextTyp;
+
   var storeWrapper = void 0;
   var getStoreWrapper = function getStoreWrapper(secretKey) {
-    return secretKey === _store.secretStoreKey ? storeWrapper : null;
+    return secretKey === _utils.INTERNALS.INTERNAL_KEY ? storeWrapper : null;
   };
 
   var dataToggler = (0, _utils.toggleSymbols)();
@@ -268,7 +272,7 @@ function component(generator) {
   if (renderFn && renderFn.$$typeof === Symbol.for('react.element')) {
     var origRender = renderFn;
     renderFn = function renderFn() {
-      return origRender;
+      return typeof origRender === 'function' ? origRender.bind(this) : origRender;
     };
   }
 
@@ -293,7 +297,7 @@ function component(generator) {
          * be used to trap `ref={...}` references.
          */
         var referencer = createReferencer();
-        var newProps = Object.assign({}, this.props, { ref: referencer });
+        var newProps = (0, _utils.merge)(this.props, { ref: referencer });
 
         /*
          * Trap a reference to the storeWrapper so that our
@@ -317,7 +321,7 @@ function component(generator) {
             }));
           });
 
-          newProps = Object.assign({}, newProps, { actions: actionProps });
+          newProps.actions = actionProps;
         }
 
         /*
@@ -326,26 +330,26 @@ function component(generator) {
          * the event object and the current props.
          */
         if (cache.handlers) {
-          var newHandlers = (0, _utils.mapObject)(cache.handlers, function (val, key) {
+          var mergedHandlers = (0, _utils.merge)(newProps.handlers || {}, (0, _utils.mapObject)(cache.handlers, function (fun) {
             var handler = function handler(evt) {
-              return val(evt, newProps);
+              return fun(evt, newProps);
             };
             handler.with = function () {
-              for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
-                args[_key] = arguments[_key];
+              for (var _len = arguments.length, extras = Array(_len), _key = 0; _key < _len; _key++) {
+                extras[_key] = arguments[_key];
               }
 
               return function (evt) {
-                return val.apply(undefined, [evt, newProps].concat(args));
+                return fun.apply(undefined, [evt, newProps].concat(extras));
               };
             };
             return handler;
-          });
-          var mergedHandlers = newProps.handlers ? Object.assign({}, newProps.handlers, newHandlers) : newHandlers;
-          newProps = Object.assign({}, newProps, { handlers: mergedHandlers });
+          }));
+
+          newProps.handlers = mergedHandlers;
         }
 
-        return renderFn(newProps);
+        return renderFn.bind(this)(newProps);
       }
     }]);
 
@@ -356,7 +360,7 @@ function component(generator) {
    * Make sure every component can access the store wrapper
    * we got from our custom provider.
    */
-  Component.contextTypes = _defineProperty({}, _utils.INTERNALS.STORE_REF, _propTypes2.default.object.isRequired);
+  Component.contextTypes = (_Component$contextTyp = {}, _defineProperty(_Component$contextTyp, _utils.INTERNALS.STORE_REF, _propTypes2.default.object.isRequired), _defineProperty(_Component$contextTyp, _utils.INTERNALS.LOC_REF, _propTypes2.default.object), _Component$contextTyp);
 
   /*
    * Attach prop types to the component if necessary.

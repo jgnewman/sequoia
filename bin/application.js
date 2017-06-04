@@ -4,6 +4,8 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
+var _CustomProvider$child;
+
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 exports.application = application;
@@ -73,7 +75,9 @@ var CustomProvider = function (_React$Component) {
   _createClass(CustomProvider, [{
     key: 'getChildContext',
     value: function getChildContext() {
-      return _defineProperty({}, _utils.INTERNALS.STORE_REF, this.props[_utils.INTERNALS.STORE_REF]);
+      var _ref;
+
+      return _ref = {}, _defineProperty(_ref, _utils.INTERNALS.STORE_REF, this.props[_utils.INTERNALS.STORE_REF]), _defineProperty(_ref, _utils.INTERNALS.LOC_REF, this.props[_utils.INTERNALS.LOC_REF]), _ref;
     }
 
     /*
@@ -85,7 +89,7 @@ var CustomProvider = function (_React$Component) {
     value: function render() {
       return _react2.default.createElement(
         _reactRedux.Provider,
-        { store: this.props[_utils.INTERNALS.STORE_REF].get(_store.secretStoreKey) },
+        { store: this.props[_utils.INTERNALS.STORE_REF].get(_utils.INTERNALS.INTERNAL_KEY) },
         _react.Children.only(this.props.children)
       );
     }
@@ -99,7 +103,7 @@ var CustomProvider = function (_React$Component) {
  */
 
 
-CustomProvider.childContextTypes = _defineProperty({}, _utils.INTERNALS.STORE_REF, _propTypes2.default.object.isRequired);
+CustomProvider.childContextTypes = (_CustomProvider$child = {}, _defineProperty(_CustomProvider$child, _utils.INTERNALS.STORE_REF, _propTypes2.default.object.isRequired), _defineProperty(_CustomProvider$child, _utils.INTERNALS.LOC_REF, _propTypes2.default.object), _CustomProvider$child);
 
 /**
  * @class
@@ -136,6 +140,7 @@ var AppKit = function () {
 
     /**
      * Allow the user to determine where to render their application.
+     * Does nothing if called on the server side.
      *
      * @param  {String|Element} target The html target for rendering.
      *
@@ -147,6 +152,9 @@ var AppKit = function () {
     value: function renderIn(target) {
       if (this.cache.target) {
         throw (0, _utils.createError)('The `renderIn` function can only be called once per application.');
+      }
+      if (typeof document === 'undefined') {
+        return this;
       }
       this.cache.target = typeof target === 'string' ? document.querySelector(target) : target;
       return this;
@@ -221,12 +229,21 @@ function application(generator) {
   }
 
   /*
+   * Create the final, wrapped application component.
+   */
+  var SequoiaApplication = function SequoiaApplication(props) {
+    var _React$createElement;
+
+    return _react2.default.createElement(CustomProvider, (_React$createElement = {}, _defineProperty(_React$createElement, _utils.INTERNALS.STORE_REF, storeWrapper), _defineProperty(_React$createElement, _utils.INTERNALS.LOC_REF, props.locationContext || null), _React$createElement), _react2.default.createElement(Application, props));
+  };
+
+  /*
    * Create the function that will render the application.
    * When we render, pass the storeWrapper down through the
    * context tree.
    */
   var render = function render() {
-    _reactDom2.default.render(_react2.default.createElement(CustomProvider, _defineProperty({}, _utils.INTERNALS.STORE_REF, storeWrapper), _react2.default.createElement(Application, null)), appCache.target);
+    _reactDom2.default.render(_react2.default.createElement(SequoiaApplication, null), appCache.target);
   };
 
   /*
@@ -264,12 +281,19 @@ function application(generator) {
   }
 
   /*
-   * Render the application either immediately or after rehydration has
-   * completed.
+   * If we're in the browser, render the application either immediately or
+   * after rehydration has completed.
    */
-  if (shouldDelayRender(appCache.config)) {
-    (0, _utils.subscribe)(_utils.INTERNALS.REHYDRATED, render);
-  } else {
-    render();
+  if (typeof window !== 'undefined') {
+    if (shouldDelayRender(appCache.config)) {
+      (0, _utils.subscribe)(_utils.INTERNALS.REHYDRATED, render);
+    } else {
+      render();
+    }
   }
+
+  /*
+   * Return a legit React component so we can do server side rendering.
+   */
+  return SequoiaApplication;
 }

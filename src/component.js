@@ -4,8 +4,8 @@ import ReactDOM from 'react-dom';
 import PropTypes from 'prop-types';
 import { connect, Provider } from 'react-redux';
 
-import { INTERNALS, mapObject, toggleSymbols, augment } from './utils';
-import { secretStoreKey, StoreWrapper } from './store';
+import { INTERNALS, mapObject, toggleSymbols, augment, merge } from './utils';
+import { StoreWrapper } from './store';
 import { requestsPackage, DataAPI } from './data';
 
 /**
@@ -69,7 +69,7 @@ class ComponentKit {
    *
    * @return {ComponentKit}
    */
-  handlers(handlers) {
+  createHandlers(handlers) {
     this.__cache.handlers = this.__cache.handlers || {};
     Object.assign(this.__cache.handlers, handlers);
     return this;
@@ -82,7 +82,7 @@ class ComponentKit {
    *
    * @return {ComponentKit}
    */
-  actions(infuser) {
+  createActions(infuser) {
     this.__cache.actionInfusers = this.__cache.actionInfusers || [];
     this.__cache.actionInfusers.push(infuser);
     return this;
@@ -160,8 +160,8 @@ function createDispatcher(storeWrapper, actionProps, fn) {
      */
     if (typeof actionType === 'function') {
       const origActionType = actionType;
-      actionType = dispatch => {
-        return origActionType(actionProps);
+      actionType = (dispatch) => {
+        return origActionType(actionProps, () => storeWrapper.getClean(INTERNALS.INTERNAL_KEY), dispatch);
       }
     }
 
@@ -192,7 +192,7 @@ function createDispatcher(storeWrapper, actionProps, fn) {
 export function component(generator) {
   let storeWrapper;
   const getStoreWrapper = secretKey => {
-    return secretKey === secretStoreKey ? storeWrapper : null;
+    return secretKey === INTERNALS.INTERNAL_KEY ? storeWrapper : null;
   };
 
   const dataToggler = toggleSymbols();
@@ -210,7 +210,9 @@ export function component(generator) {
    */
   if(renderFn && renderFn.$$typeof === Symbol.for('react.element')) {
     const origRender = renderFn;
-    renderFn = () => origRender;
+    renderFn = function () {
+      return typeof origRender === 'function' ? origRender.bind(this) : origRender;
+    };
   }
 
   /*
@@ -228,7 +230,7 @@ export function component(generator) {
        * be used to trap `ref={...}` references.
        */
       const referencer = createReferencer();
-      let newProps = Object.assign({}, this.props, { ref: referencer });
+      let newProps = merge(this.props, { ref: referencer })
 
       /*
        * Trap a reference to the storeWrapper so that our
@@ -256,7 +258,7 @@ export function component(generator) {
           );
         })
 
-        newProps = Object.assign({}, newProps, { actions: actionProps });
+        newProps.actions = actionProps;
       }
 
       /*
@@ -265,16 +267,16 @@ export function component(generator) {
        * the event object and the current props.
        */
       if (cache.handlers) {
-        const newHandlers = mapObject(cache.handlers, (val, key) => {
-          const handler = evt => val(evt, newProps);
-          handler.with = (...args) => evt => val(evt, newProps, ...args);
+        const mergedHandlers = merge(newProps.handlers || {}, mapObject(cache.handlers, fun => {
+          const handler = evt => fun(evt, newProps);
+          handler.with = (...extras) => evt => fun(evt, newProps, ...extras);
           return handler;
-        });
-        const mergedHandlers = newProps.handlers ? Object.assign({}, newProps.handlers, newHandlers) : newHandlers;
-        newProps = Object.assign({}, newProps, { handlers: mergedHandlers });
+        }));
+
+        newProps.handlers = mergedHandlers;
       }
 
-      return renderFn(newProps);
+      return renderFn.bind(this)(newProps);
     }
   }
 
@@ -283,7 +285,8 @@ export function component(generator) {
    * we got from our custom provider.
    */
   Component.contextTypes = {
-    [INTERNALS.STORE_REF]: PropTypes.object.isRequired
+    [INTERNALS.STORE_REF]: PropTypes.object.isRequired,
+    [INTERNALS.LOC_REF]: PropTypes.object
   };
 
   /*

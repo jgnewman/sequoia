@@ -87,13 +87,19 @@ const TextBlock = component(kit => {
 
 In this case, we've used the `ensure` method to guarantee that every time this component is instantiated, it will have a prop called "text" taking the form of a string. If that doesn't happen, we'll get a useful error about it in the console.
 
-This constitutes the basics of component composition in Sequoia. If you are already familiar with React, you should know that Sequoia components create extremely light wrappers over React components. Because Sequoia provides a form of built-in state management, all Sequoia components are stateless. In this way, Sequoia helps you avoid distributed state spaghetti.
+This constitutes the basics of component composition in Sequoia. If you are already familiar with React, you should know that Sequoia components create light wrappers over React components. Because Sequoia provides a form of built-in state management, all Sequoia components are stateless. In this way, Sequoia helps you avoid distributed state spaghetti.
 
 ### Observables (i.e. State Management)
 
 Every Sequoia application is supported by a single, global state object. The state can be namespaced and values within each namespace are observable. Rather than trying to spaghetti together strange ways for components to communicate with each other and share data, all components will store data on the state and the state will pass that data down as props to all components observing it. Whenever the state changes, those props will update and the components will automatically re-render.
 
 In order to help you avoid getting lost doing all kinds of crazy state transformations, Sequoia lets you create rules for updating observable values and provides functions for triggering those rules. This way the state is always predictable and observables don't end up causing more trouble than they're worth.
+
+Here's a visualization:
+
+![Components observing and reacting to observables](./visualization)
+
+And here's a practical example:
 
 ```jsx
 import { application, component } from 'sequoiajs';
@@ -136,7 +142,7 @@ application(appKit => {
 })
 ```
 
-In this example, the application component doesn't need to pass a prop down to the TextBlock because the TextBlock is observing that prop on from the state. Check out (the right way)[https://sequoiajs.com/the-right-way] docs for more info on when to do this and when not to.
+In this example, the application component doesn't need to pass a prop down to the TextBlock because the TextBlock is observing that prop on the state. Check out [the right way](https://sequoiajs.com/the-right-way) docs for more info on when to do this and when not to.
 
 When we create the application, we'll create a namespace on our state called "app" and define rules for how it can be transformed. The `DEFAULT` rule is a special rule that is automatically triggered when the app loads and hydrates our namespace observables with default values.
 
@@ -144,35 +150,37 @@ Notice that every rule we create needs to return a **new** copy of the state nam
 
 #### Updating Observables
 
-Now that we know how to set up default values on a state, and also how to get observable values into components, let's take a look at updating those observable values on the state. Remember, our components are reactive, so when we update an observable value, any component observing it will automatically update to reflect the change.
+Now that we know how to set up default values on a state, and also how to get observable values into components, let's take a look at updating those observables. Remember, our components are reactive, so when we update an observable value, any component observing it will automatically update to reflect the change.
 
 If we want to update an observable, we'll need to define a rule that transforms our namespace. This allows us to keep our state from getting out of control. So let's add a new rule to our `createRules` call from the previous example:
 
 ```jsx
 appKit.createRules('app', {
 
-  DEFAULT: namespace => Object.assign({}, namespace, {
+  DEFAULT: currentNamespace => merge(current, {
     text: 'Hello, world!'
   }),
 
   // When this new rule is triggered, we expect it to be triggered with
   // a "payload" – in this case, a new value for the `text` property.
-  UPDATE_TEXT: (namespace, payload) => Object.assign({}, namespace, {
+  UPDATE_TEXT: (currentNamespace, payload) => merge(currentNamespace, {
     text: payload
   })
 })
 ```
 
+In this case we've replaced `Object.assign` with a function called `merge` which you can import from the main Sequoia package. It does the same thing as `Object.assign` but is a little safer because it always spits out a new object.
+
 Note that we can create as many rules as we want for as many namespaces as we want. Each rule is arbitrarily named, except `DEFAULT` which is necessary for defining the initial shape of this piece of the state.
 
-Now that we have a rule that allows updating the "text" observable, let's create a function that triggers it. Functions that trigger rules are called "actions" so, in our component definition, we'll need to call a new kit method called `actions`:
+Now that we have a rule that allows updating the "text" observable, let's create a function that triggers it. Functions that trigger rules are called "actions" so, in our component definition, we'll need to call a new kit method called `createActions`:
 
 ```jsx
 const TextBlock = component(kit => {
 
   // Create a new prop called `actions` containing
   // all functions defined here.
-  kit.actions(rules => ({
+  kit.createActions(rules => ({
 
     // Return an object with a `rule` property that
     // names a state rule and a `payload` property that
@@ -209,7 +217,7 @@ const TextBlock = component(kit => {
 
 If you are familiar with common React/Redux architecture, this will likely make perfect sense to you. If not, it may feel a bit new. If that's the case, here is a brief conclusion tying everything together:
 
-The general idea is that all of your application state is stored in one global state object under various namespaces. Components observe values on these namespaces and can pass those values down to their nested children. Whenever observed values change, all components using them will automatically update. To change those values, we define rules for how the state can be transformed, then create actions that trigger those rules within our components.
+The general idea is that all of your application state is stored in one global object that is separated into namespaces. Components observe values on these namespaces and can pass those values down to their nested children. Whenever observed values change, all components using them will automatically update. To change those values, we define rules for how the state can be transformed, then create actions that trigger those rules within our components. You may want to take a look at the above visualization again.
 
 ## Other Cool Tricks
 
@@ -217,12 +225,13 @@ Sequoia comes bundled with lots of useful functionality, but not so much that it
 
 ### Options for Your Actions
 
-You already know about actions in Sequoia – functions that trigger rules for transforming the state. In the example already shown, our action returned an object with a `type` property naming the state rule and a `payload` property that sent in a new value. There are a few other ways you can trigger actions as well. Here are all the options:
+You already know about actions in Sequoia – functions that trigger rules for transforming the state. In the example already shown, our action returned an object with a `rule` property naming the state rule and a `payload` property that sent in a new value. There are a few other ways you can trigger actions as well. Here are all the options:
 
 ```javascript
-kit.actions((rules, reqs) => ({
+kit.createActions((rules, reqs) => ({
 
-  // No need for a payload? Just name the rule.
+  // No need for a payload? Just name the rule. Sequoia will
+  // make a function for you.
   foo: rules.namespace.FOO,
 
   // Sending a payload? Make a function returning an object.
@@ -260,12 +269,12 @@ When the user clicks the link, an action called `foo` will run and, as you might
 
 The problem with this solution, however, is not only that it looks kind of gross. Also, every time props change and the component re-renders, you'll be generating a brand new function and throwing the old one away for no reason.
 
-To make this whole experience just a bit nicer, Sequoia gives you a component kit method called `handlers`:
+To make this whole experience just a bit nicer, Sequoia gives you a component kit method called `createHandlers`:
 
 ```jsx
 const Clickable = component(kit => {
 
-  kit.handlers({
+  kit.createHandlers({
     handleClick: (evt, props) => {
       evt.preventDefault();
       props.actions.foo();
@@ -279,14 +288,14 @@ const Clickable = component(kit => {
 
 ```
 
-In this example, we create a new prop called `handlers` containing as many functions as we want to define. These functions can be attached to events in our JSX and, when called, they will be handed both the event object itself and the full collection of all of the props available to the component where they were defined.
+In this example, we use `createHandlers` to create a new prop called `handlers` containing as many functions as we want to define. These functions can be attached to events in our JSX and, when called, they will be handed both the event object itself and the full collection of all of the props available to the component where they were defined.
 
-To add just one more layer of icing, Sequoia allows you to add _even more_ values to your handler functions. For example:
+To add just one more layer of icing, Sequoia allows you to add _even more_ useful values to your handler functions. For example:
 
 ```jsx
 const Clickable = component(kit => {
 
-  kit.handlers({
+  kit.createHandlers({
     handleClick: (evt, props, extraVal1, extraVal2) => {
       evt.preventDefault();
       console.log(extraVal1, extraVal2); // <- 'foo', 'bar'
@@ -300,7 +309,7 @@ const Clickable = component(kit => {
 })
 ```
 
-In this example, the `with` function allows you to add as many values as you'd like to a click handler _in addition to_ the event and the component props.
+In this example, the `with` function allows you to add as many values as you'd like to an event handler _in addition to_ the event and the component props.
 
 ### Decisions & Routing
 
@@ -332,7 +341,7 @@ To make this a whole lot nicer, Sequoia gives you a pre-made component called `W
 
 `When` works like an `if` statement, **not** like an `if...else` statement. In other words, you can create as many instances of `When` as you like and each one will render independently of all the others.
 
-However, there _is_ a way to create an `if...else` situation using the `When` component. To do it, you'll just need to pull in a couple other pre-made components, namely `Switch` and `Otherwise`:
+If you need to create an `if...else` situation, you just need to combine the `When` component with a couple other pre-made components, namely `Switch` and `Otherwise`:
 
 ```jsx
 <div>
@@ -393,7 +402,7 @@ However, fetching data can be a bit like Schrödinger's cat. You might get succe
 To begin, you'll want to know that data is always fetched via special actions called "reqs" (short for "requests"). When you create actions for a component, you get access to all of these reqs:
 
 ```javascript
-kit.actions((rules, reqs) => ({
+kit.createActions((rules, reqs) => ({
   getUsers: () => reqs.get('USER_LIST', '/api/v1/users')
 }))
 ```
@@ -408,11 +417,11 @@ import { Spinner } from './my-spinner';
 
 const UserList = component(kit => {
 
-  kit.actions((rules, reqs) => ({
+  kit.createActions((rules, reqs) => ({
     getUsers: () => reqs.get('USER_LIST', '/api/v1/users')
   }))
 
-  kit.handlers({
+  kit.createHandlers({
     handleClick: (evt, props) => {
       evt.preventDefault();
       props.actions.getUsers()
@@ -453,7 +462,7 @@ const UserList = component(kit => {
 
 In this example, we provide an `a` tag the user can click to fetch data. Based on the state of that data, we'll display different things. Even though the data isn't a direct prop of the component, the component will still automatically re-render when the state of the data changes!
 
-When the request was successful and we have data, we'll display a list of users. When the request failed, we'll display the resulting error message. While the request is pending, we'll display a spinner component (not included with the package).
+When the request was successful and we have data, we'll display a list of users. When the request failed, we'll display the resulting error message. While the request is pending, we'll display a spinner component (not included with Sequoia).
 
 There is a lot more that can be done with data requests. But I'll leave you to explore that in the [docs](https://sequoiajs.com/docs).
 
@@ -473,7 +482,7 @@ For one, you don't need to do anything special to an array of objects in order t
 </ul>
 ```
 
-In terms of performing cool manipulations on a list like this, Sequoia provides the `collect` function at a global level.
+But in terms of performing cool manipulations on a list like this, Sequoia provides the `collect` function at a global level.
 
 ```jsx
 import { component, collect } from 'sequoiajs';
@@ -510,7 +519,7 @@ To help you do this, Sequoia provides a nice technique for referencing actual DO
 ```jsx
 component(kit => {
 
-  kit.handlers({
+  kit.createHandlers({
 
     handleClick: (evt, props) => {
       evt.preventDefault();
@@ -596,3 +605,165 @@ gulp.task('compile', () => {
 ```
 
 Although Sequoia is a framework that provides a core of commonly-needed application features, you will likely end up adding more packages. The great thing is, any package that is compatible with React ought to be compatible with Sequoia as well. Sequoia components are just React components after all. So there is already an extensive amount of cool add-ons you can try out with Sequoia. Just remember to have fun while you're at it!
+
+## Server Side Rendering (Isomorphism)
+
+One of the "must-have" features of progressive web applications is server-side rendering. With this technique, you can pre-render your application on the server and thereby receive benefits in the form of better SEO, less time waiting for the first meaningful paint, and an ability to pre-fetch data before the server hands the page to the browser.
+
+In Sequoia, this is super easy. Here are some things we'll talk about:
+
+- The application itself isn't meant to be isolated to the server. It just gets an initial render on the server so that the browser gets some meaningful content right away. Once the app is live in the browser, the client side app will take over.
+- If you want to pre-fetch data and make it available to your application on the client side, you will necessarily need a way to serialize it and put it into the server's response.
+- There are going to be implications for routing since client side routing is based on the `location` object and the server does not have a `location` object. The good news is, Sequoia makes tackling this a breeze.
+
+### The Basic Idea
+
+> Note: We'll use some pseudo code in this section because the point is to illustrate a concept, not to teach you how to use a particular Node library.
+
+Sequoia components are isomorphic, meaning they can exist both on a server or in the browser. This is great because it means you can write your app once, and then allow it to both pre-render on the server when the browser makes a request, and pick up where the server left off once the app is running live on the client side.
+
+To illustrate, let's create a few very simple components that will comprise a simple application:
+
+```jsx
+const Home = component(() => {
+  return () => (
+    <div>This is home page content.</div>
+  )
+})
+
+const About = component(() => {
+  return () => (
+    <div>This is about page content.</div>
+  )
+})
+
+const NotFound = component(() => {
+  return () => (
+    <div>This is 404 page content.</div>
+  )
+})
+
+const Router = component(() => {
+  return () => (
+    <Switch>
+
+      <When path={'/'}>
+        <Home />
+      </When>
+
+      <When path={'/about'}>
+        <About />
+      </When>
+
+      <Otherwise>
+        <NotFound />
+      </Otherwise>
+
+    </Switch>
+  )
+})
+
+const ClientApp = application(appKit => {
+  appKit.renderIn('#root');
+  return () => <Router />
+})
+```
+
+Here we have a completely normal Sequoia app that chooses one of 3 pages to display based on path name. So far, we haven't done anything special geared toward server side rendering.
+
+**We'll assume that, as part of our build process, these components will be bundled and put into a file called "bundle.js".**
+
+#### Adding SSR
+
+To enable server side rendering, we just need to add a little layer on top of what we've already built. And here it is:
+
+```jsx
+const Html = component(() => {
+  return () => (
+    <html>
+      <head>
+        <title>My Cool App</title>
+      </head>
+      <body>
+        <div id="root">
+          <Router />
+        </div>
+        <script src="/bundle.js"></script>
+      </body>
+    </html>
+  )
+})
+
+const ServerApp = application(() => {
+  return () => <Html />
+})
+```
+
+Here, we've built a component that generates an entire html structure as well as a second application that instantiates it. Notice that our `Router` component is placed directly inside the "root" div. This is how the server will be able to perform the initial render of the rest of our application. Once the app is live on the page, our `ClientApp` component will kick in and take over handling the content inside of the "root" div. The `ClientApp` will exist on the page because it gets pulled in as part of "bundle.js".
+
+#### Hooking Up To A Server
+
+You may have noticed that our `Router` makes decisions based on "path" which doesn't exist on the server. We'll fix that in this step. Here, we're going to use a little pseudo code to handle an incoming request from the browser:
+
+```jsx
+import { renderToStaticMarkup } from 'sequoiajs/server';
+import { ServerApp } from './wherever';
+
+connection.on('/', (request, response) => {
+  const location = { pathname: request.url };
+  res.send(renderToStaticMarkup(<ServerApp locationContext={location} />))
+})
+```
+
+In this step, when the browser requests the "/" path, we render our `ServerApp` component to static markup and serve it back to the browser. In order to help out our router, we provide a `locationContext` prop to the `ServerApp`. This is a special prop available to application components that allows us to simulate the browser's `location` object. Since the router only cares about the path, we only need to mock the `location.pathname` property.
+
+Tada! That's all you need.
+
+#### Pre-Fetching Data
+
+If you'd like to fetch some data and make that available to your app as part of server side rendering, Sequoia has your back. Let's revisit our pseudo server request.
+
+```jsx
+connection.on('/', (request, response) => {
+
+  const location = { pathname: request.url };
+
+  db.getUsers().then(users => {
+
+    res.send(renderToStaticMarkup(
+      <ServerApp users={users} locationContext={location} />
+    ))
+
+  })
+
+})
+```
+
+In this case, we make a database request for users before sending back a response. When we render the app to markup, we pass that data down as a prop. In terms of making it available to the client side app, we need one more step. Let's revisit our `Html` component which is instantiated by the `ServerApp`.
+
+```jsx
+import { Preload } from 'sequoiajs';
+
+const Html = component(() => {
+  return ({ users }) => (
+    <html>
+      <head>
+        <title>My Cool App</title>
+      </head>
+      <body>
+        <div id="root">
+          <Router />
+        </div>
+
+        <Preload data={{ USERS: users }} />
+
+        <script src="/bundle.js"></script>
+      </body>
+    </html>
+  )
+})
+```
+
+Here, we add in a new, pre-made component to our html called `Preload`. It takes a single prop, `data`, that allows you to name all of the data that should be preloaded into the state. When the live app loads up, you will be able to do things like `kit.data.value('USERS')` to get the value of any preloaded data.
+
+# And that's it!

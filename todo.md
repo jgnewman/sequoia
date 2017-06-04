@@ -120,7 +120,20 @@ v0.1.4
 
 - [x] Should be usable via a <script> tag
 
-v0.1.5
+v0.2.0
 
-- [ ] Should be isomorphic
-- [ ] Should produce good lighthouse scores
+- [x] Renames
+  - [x] actions -> createActions
+  - [x] handlers -> createHandlers
+- [x] Framework is now fully isomorphic
+  - [x] Provide access to `renderToString` and `renderToStaticMarkup` from react-dom/server
+  - [x] Renders isomorphically
+  - [x] Attach `locationContext` prop to the application props to manually set the page location for nicer routing
+  - [x] You can preload state with data
+    - [x] premade component to drop a preload object into our ssr html
+    - [x] on load, pull all that stuff into @@DATA on the state
+- [x] allow manual usage of testPath function from router
+- [x] allow manual usage of test hash path function from router
+- [x] Should produce good lighthouse scores
+- [x] Expose getState & dispatch to actions
+- [x] New When props: dataOk, dataNotOk, dataPending, dataRequested, params

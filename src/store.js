@@ -3,17 +3,13 @@ import thunkware from 'redux-thunk';
 import { persistStore, autoRehydrate } from 'redux-persist';
 import { REHYDRATE } from 'redux-persist/constants';
 
-import { INTERNALS, createError, publish } from './utils';
+import { INTERNALS, createError, publish, mapObject, win, merge } from './utils';
+import { createSuccessState } from './data';
 
 /*
  * Holds references to hooks to run when stores are created.
  */
 const storeHooks = [];
-
-/*
- * For any internal store related stuff.
- */
-export const secretStoreKey = Symbol();
 
 /**
  * @class
@@ -49,6 +45,24 @@ export class StoreWrapper {
   }
 
   /**
+   * Returns a copy of the state object without '@@' keys.
+   *
+   * @param  {String}  secretKey For retrieving the state.
+   *
+   * @return {Object} The clean state.
+   */
+  getClean(secretKey) {
+    const state = this.get(secretKey).getState();
+    const output = {};
+    mapObject(state, (val, key) => {
+      if (key.slice(0, 2) !== '@@') {
+        output[key] = val;
+      }
+    })
+    return output;
+  }
+
+  /**
    * Creates a new namespace on the initialState.
    *
    * @param  {String} name The name of the namespace.
@@ -62,9 +76,9 @@ export class StoreWrapper {
   /**
    * Creates a new micro-reducer for this store.
    *
-   * @param  {String|Symbol} name      The action type associated with the reducer.
-   * @param  {String|Symbol} substate  The namespace on the state associated with the rule.
-   * @param  {Function}      reducer   How to reduce this action. Takes update, substate, payload.
+   * @param  {String}   name      The action type associated with the reducer.
+   * @param  {String}   substate  The namespace on the state associated with the rule.
+   * @param  {Function} reducer   How to reduce this action. Takes update, substate, payload.
    *
    * @return {undefined}
    */
@@ -91,7 +105,7 @@ export class StoreWrapper {
    * @return {undefined}
    */
   dispatch(action) {
-    const store = this.get(secretStoreKey);
+    const store = this.get(INTERNALS.INTERNAL_KEY);
     store.dispatch(action);
   }
 
@@ -135,7 +149,7 @@ export class StoreWrapper {
        * Afterward, attach the new substate to the full state.
        */
       const newSubstate = rule.reducer(state[rule.substate] || {}, action.payload);
-      return Object.assign({}, state, { [rule.substate]: newSubstate });
+      return merge(state, { [rule.substate]: newSubstate });
 
     } else if (action.type === REHYDRATE) {
 
@@ -149,11 +163,12 @@ export class StoreWrapper {
 
       /*
        * When autoPersist attempts to rehydrate, clear out any existing
-       * data and don't overwrite hash path stuff.
+       * data and replace it with any preload data we may have.
+       * Don't overwrite hash path stuff.
        */
-      return Object.assign({}, state, {
-        [INTERNALS.DATA_REF]  : {},
-        [INTERNALS.HASH_PATH] : Object.assign({}, state[INTERNALS.HASH_PATH])
+      return merge(state, {
+        [INTERNALS.DATA_REF]: merge(state[INTERNALS.DATA_REF]),
+        [INTERNALS.HASH_PATH]: merge(state[INTERNALS.HASH_PATH])
       });
 
     /*
@@ -180,6 +195,14 @@ export class StoreWrapper {
     middleware.unshift(thunkware);
 
     /*
+     * Preload data into the initial state
+     */
+    const preload = win[INTERNALS.PRELOAD_REF] || {};
+    this.initialState[INTERNALS.DATA_REF] = mapObject(preload, data => {
+      return createSuccessState(200, data)
+    });
+
+    /*
      * Create the actual store.
      */
     const store = createStore(this.reduce.bind(this), this.initialState, this.compose(
@@ -190,7 +213,7 @@ export class StoreWrapper {
     /*
      * Provide means to access the store if we have a secret key for it.
      */
-    this.store = (secretKey) => secretKey === secretStoreKey ? store : null;
+    this.store = (secretKey) => secretKey === INTERNALS.INTERNAL_KEY ? store : null;
 
     /*
      * If the user hasn't disabled auto persistence, go ahead and set up persist.
