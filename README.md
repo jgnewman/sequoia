@@ -4,7 +4,7 @@
 
 [![Build Status](https://travis-ci.org/jgnewman/sequoia.svg?branch=master)](https://travis-ci.org/jgnewman/sequoia)
 
-<img src="https://github.com/jgnewman/sequoia/raw/master/banner.png" alt="Sequoia Banner" width="200"/>
+<img src="https://github.com/jgnewman/sequoia/raw/master/banner.png" alt="Sequoia Banner" width="400"/>
 
 Sequoia is a natural, progressive, full-featured JavaScript application framework. It's powered by React and common React-based tools but you can quickly learn Sequoia without having ever touched React in your life. By the same token, it's similar enough to standard React techniques that, if you are already familiar with React best practices, migrating to a Sequoia mindset can be done extremely quickly.
 
