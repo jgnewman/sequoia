@@ -97,7 +97,7 @@ In order to help you avoid getting lost doing all kinds of crazy state transform
 
 Here's a visualization:
 
-![Components observing and reacting to observables](./visualization)
+![Components observing and reacting to observables](https://github.com/jgnewman/sequoia/raw/master/visualization.png)
 
 And here's a practical example:
 

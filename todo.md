@@ -137,3 +137,7 @@ v0.2.0
 - [x] Should produce good lighthouse scores
 - [x] Expose getState & dispatch to actions
 - [x] New When props: dataOk, dataNotOk, dataPending, dataRequested, params
+
+v0.2.1
+
+- [x] Fix readme
