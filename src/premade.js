@@ -74,11 +74,12 @@ export const When = component(kit => {
        * `component` prop.
        */
       } else {
+        const componentProps = props.with || {};
         return !props.component ? null : React.createElement(
           props.component,
-          removeProps(props, ['component', 'preVet'].concat(vetted.exclusives)),
+          props.with,
           props.children
-        )
+        );
       }
     }
   }
@@ -115,7 +116,7 @@ export const Otherwise = component(() => {
  *
  * @param {Object} props The component props.
  */
-export const Switch = component(kit => {
+export const Pick = component(kit => {
   return function (props) {
     let chosen = null;
     let vetting;

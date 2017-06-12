@@ -3,6 +3,7 @@
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
+exports.when = undefined;
 exports.createLocation = createLocation;
 exports.createHashRule = createHashRule;
 exports.vetProps = vetProps;
@@ -11,6 +12,7 @@ exports.pathMatch = pathMatch;
 exports.subPathMatch = subPathMatch;
 exports.hashMatch = hashMatch;
 exports.subHashMatch = subHashMatch;
+exports.pick = pick;
 
 var _react = require('react');
 
@@ -22,7 +24,7 @@ var _store = require('./store');
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-var EXCLUSIVE_PROPS = ['ok', 'notOk', 'path', 'hash', 'subPath', 'subHash', 'populated', 'empty', 'params', 'dataOk', 'dataNotOk'];
+var EXCLUSIVE_PROPS = ['ok', 'notOk', 'path', 'hash', 'subPath', 'subHash', 'populated', 'empty', 'params', 'dataOk', 'dataNotOk', 'dataPending', 'dataRequested'];
 
 var AFTSLASH = /\/$/;
 var ACTION_STRING = _utils.INTERNALS.HASH_PATH + ':DEFAULT';
@@ -454,6 +456,91 @@ function hashMatch(pattern, actual) {
 function subHashMatch(pattern, actual) {
   return testSubPath(pattern, true, actual);
 }
+
+/**
+ * Allow users to execute a functional version of `Pick` that will return
+ * its first truthy argument. If the argument is a function, it will run the
+ * function to determine whether the result is truthy.
+ * 
+ * @param {Any} args A series of possibilities for what to return.
+ * 
+ * @return {Any} Usually some jsx or null. 
+ */
+function pick() {
+  var out = null;
+
+  for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
+    args[_key] = arguments[_key];
+  }
+
+  args.some(function (option) {
+    if (typeof option === 'function') {
+      option = option();
+    }
+    if (option) {
+      out = option;
+      return true;
+    } else {
+      return false;
+    }
+  });
+  return out;
+}
+
+/**
+ * Allow users to functionally execute the concepts of the `When`
+ * component in order to avoid jsx evaluation in certain cases.
+ */
+var when = exports.when = {
+  ok: function ok(val, result) {
+    if (!val) return false;
+    return typeof result === 'function' ? result() : result;
+  },
+  notOk: function notOk(val, result) {
+    return this.ok(!val, result);
+  },
+  path: function path(pattern, realPath, result) {
+    if (arguments.length < 3) {
+      result = realPath;
+      realPath = null;
+    }
+    return this.ok(testPath(pattern, false, realPath), result);
+  },
+  hash: function hash(pattern, realHash, result) {
+    if (arguments.length < 3) {
+      result = realHash;
+      realHash = null;
+    }
+    return this.ok(testPath(pattern, true, realHash), result);
+  },
+  subPath: function subPath(pattern, realPath, result) {
+    if (arguments.length < 3) {
+      result = realPath;
+      realPath = null;
+    }
+    return this.ok(testSubPath(pattern, false, realPath), result);
+  },
+  subHash: function subHash(pattern, realHash, result) {
+    if (arguments.length < 3) {
+      result = realHash;
+      realHash = null;
+    }
+    return this.ok(testSubPath(pattern, true, realHash), result);
+  },
+  populated: function populated(arr, result) {
+    return this.ok(testPopulated(arr), result);
+  },
+  empty: function empty(arr, result) {
+    return this.ok(!testPopulated(arr), result);
+  },
+  params: function params(toMatch, within, result) {
+    if (arguments.length < 3) {
+      result = within;
+      within = null;
+    }
+    return this.ok(testParams(toMatch, within), result);
+  }
+};
 
 /*
 

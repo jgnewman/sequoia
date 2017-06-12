@@ -4,8 +4,8 @@ import { collect } from './collect';
 import { component } from './component';
 import { application } from './application';
 import { constants, uuid } from './constants';
-import { Redirect, When, Otherwise, Switch, Preload } from './premade';
-import { pathMatch, subPathMatch, hashMatch, subHashMatch } from './routing';
+import { Redirect, When, Otherwise, Pick, Preload } from './premade';
+import { pathMatch, subPathMatch, hashMatch, subHashMatch, pick, when } from './routing';
 
 /*
  * Package up our exports
@@ -27,6 +27,8 @@ const exp = {
   subPathMatch: subPathMatch,
   hashMatch: hashMatch,
   subHashMatch: subHashMatch,
+  pick: pick,
+  when: when,
 
   /*
    * Pre-made components
@@ -34,7 +36,7 @@ const exp = {
   Preload: Preload,
   Otherwise: Otherwise,
   Redirect: Redirect,
-  Switch: Switch,
+  Pick: Pick,
   When: When
 }
 

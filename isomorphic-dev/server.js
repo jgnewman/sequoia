@@ -16,9 +16,9 @@ const Html = component(kit => {
     return (
       <html>
         <head>
-            <title>
-                React Server Rendering
-            </title>
+          <title>
+            React Server Rendering
+          </title>
         </head>
         <body>
           <div id="root">

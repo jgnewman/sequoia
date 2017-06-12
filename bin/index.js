@@ -40,6 +40,8 @@ var exp = {
   subPathMatch: _routing.subPathMatch,
   hashMatch: _routing.hashMatch,
   subHashMatch: _routing.subHashMatch,
+  pick: _routing.pick,
+  when: _routing.when,
 
   /*
    * Pre-made components
@@ -47,7 +49,7 @@ var exp = {
   Preload: _premade.Preload,
   Otherwise: _premade.Otherwise,
   Redirect: _premade.Redirect,
-  Switch: _premade.Switch,
+  Pick: _premade.Pick,
   When: _premade.When
 };
 

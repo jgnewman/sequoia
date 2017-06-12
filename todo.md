@@ -145,3 +145,13 @@ v0.2.1
 v0.2.2
 
 - [x] Add npm keywords
+
+v0.2.3
+
+- [ ] I guess we should probably pass through some lifecycle methods in some way.
+  - [ ] should component update
+  - [ ] ok, it's time to do something about forms tho, for real
+- [x] Switch renamed to Pick
+- [x] When, Otherwise get "with" prop for instantiating a component with particular props to avoid jsx eval
+- [x] Provide when, pick functions so we can avoid evaluating jsx
+- [ ] Update README

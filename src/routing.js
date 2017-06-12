@@ -14,7 +14,9 @@ const EXCLUSIVE_PROPS = [
   'empty',
   'params',
   'dataOk',
-  'dataNotOk'
+  'dataNotOk',
+  'dataPending',
+  'dataRequested'
 ];
 
 const AFTSLASH = /\/$/;
@@ -462,6 +464,95 @@ export function subHashMatch(pattern, actual) {
   return testSubPath(pattern, true, actual)
 }
 
+/**
+ * Allow users to execute a functional version of `Pick` that will return
+ * its first truthy argument. If the argument is a function, it will run the
+ * function to determine whether the result is truthy.
+ * 
+ * @param {Any} args A series of possibilities for what to return.
+ * 
+ * @return {Any} Usually some jsx or null. 
+ */
+export function pick(...args) {
+  let out = null;
+  args.some(option => {
+    if (typeof option === 'function') {
+      option = option();
+    }
+    if (option) {
+      out = option;
+      return true;
+    } else {
+      return false;
+    }
+  });
+  return out;
+}
+
+/**
+ * Allow users to functionally execute the concepts of the `When`
+ * component in order to avoid jsx evaluation in certain cases.
+ */
+export const when = {
+
+  ok(val, result) {
+    if (!val) return false;
+    return typeof result === 'function' ? result() : result;
+  },
+
+  notOk(val, result) {
+    return this.ok(!val, result);
+  },
+
+  path(pattern, realPath, result) {
+    if (arguments.length < 3) {
+      result = realPath;
+      realPath = null;
+    }
+    return this.ok(testPath(pattern, false, realPath), result);
+  },
+
+  hash(pattern, realHash, result) {
+    if (arguments.length < 3) {
+      result = realHash;
+      realHash = null;
+    }
+    return this.ok(testPath(pattern, true, realHash), result);
+  },
+
+  subPath(pattern, realPath, result) {
+    if (arguments.length < 3) {
+      result = realPath;
+      realPath = null;
+    }
+    return this.ok(testSubPath(pattern, false, realPath), result);
+  },
+
+  subHash(pattern, realHash, result) {
+    if (arguments.length < 3) {
+      result = realHash;
+      realHash = null;
+    }
+    return this.ok(testSubPath(pattern, true, realHash), result);
+  },
+
+  populated(arr, result) {
+    return this.ok(testPopulated(arr), result);
+  },
+
+  empty(arr, result) {
+    return this.ok(!testPopulated(arr), result);
+  },
+
+  params(toMatch, within, result) {
+    if (arguments.length < 3) {
+      result = within;
+      within = null;
+    }
+    return this.ok(testParams(toMatch, within), result);
+  }
+
+};
 
 
 /*

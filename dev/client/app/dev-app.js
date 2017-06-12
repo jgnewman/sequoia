@@ -2,14 +2,19 @@ import {
   application,
   component,
   collect,
-  Switch,
+  Pick,
   When,
   Otherwise,
   uuid,
   merge,
-  augment
+  pick,
+  when
 } from '../../../bin/index';
 import promiseWare from 'redux-promise'
+
+const Basic = component(() => props => {
+  return <div>{props.message}</div>
+})
 
 const Whatever = component(kit => {
 
@@ -21,7 +26,15 @@ const Whatever = component(kit => {
     whatever: rules.section1.UPDATE_GREETING
   }))
 
-  return <div>Oi m8</div>
+  return pick(
+  
+    when.ok(true, () => (
+      <Basic message="oi m8" />
+    )),
+    
+    () => <Basic message="oi m9" />
+
+  )
 })
 
 const Hello = component(kit => {
@@ -57,14 +70,14 @@ const Hello = component(kit => {
     return (
       <div ref={props.ref('umbrellaDiv')}>
         <div onClick={props.handlers.handleClick.with('foo')}>{props.helloWorld}</div>
-        <Switch>
+        <Pick>
           <When dataOk={'MY_DATA'}>
             <div>Some data: {kit.data.value('MY_DATA')}</div>
           </When>
           <Otherwise>
             <div>Nothing to see here, boss.</div>
           </Otherwise>
-        </Switch>
+        </Pick>
         <Whatever handlers={props.handlers} actions={props.actions}/>
       </div>
     )
@@ -123,3 +136,18 @@ const App2 = application(appKit => {
   )
 
 })
+
+
+/*
+
+pick(
+  
+  when.ok(true, () => (
+    <Basic message="oi m8" />
+  )),
+  
+  () => <Basic message="oi m9" />
+
+)
+
+*/

@@ -1,4 +1,4 @@
-import { application, component, pathMatch, Switch, When, Otherwise, Preload } from '../bin/index';
+import { application, component, pathMatch, Pick, When, Otherwise, Preload } from '../bin/index';
 
 export const Page1 = component(kit => {
   return props => (
@@ -23,10 +23,10 @@ export const Router = component(kit => {
   return props => {
     console.log('I ran over here! I should be in the bash console and the browser console!')
     return (
-      <Switch>
+      <Pick>
         <When path={'/'}><Page1 num={1} /></When>
         <Otherwise><Page2 num={2} /></Otherwise>
-      </Switch>
+      </Pick>
     )
   }
 })

@@ -130,3 +130,25 @@ export function publish(eventName, ...args) {
 export function merge(...objects) {
   return Object.assign({}, ...objects);
 }
+
+/**
+ * If an object has a provided nesting, run a function with the value
+ * at that nested level.
+ * 
+ * @param {Object}   object A beginning object to start from. 
+ * @param {Array}    nest   Strings denoting keys to step down to. 
+ * @param {Function} cb     Called with the located value and returned. 
+ */
+export function ifNested(object, nest, cb) {
+  if (!object) return;
+  let out = object;
+  nest.every(item => {
+    out = out[item];
+    return !!out;
+  });
+  if (out) {
+    return cb(out);
+  } else {
+    return out;
+  }
+}

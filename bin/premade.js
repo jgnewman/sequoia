@@ -3,7 +3,7 @@
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.Preload = exports.Switch = exports.Otherwise = exports.When = exports.Redirect = undefined;
+exports.Preload = exports.Pick = exports.Otherwise = exports.When = exports.Redirect = undefined;
 
 var _react = require('react');
 
@@ -75,7 +75,8 @@ var When = exports.When = (0, _component.component)(function (kit) {
          * `component` prop.
          */
       } else {
-        return !props.component ? null : React.createElement(props.component, (0, _utils.removeProps)(props, ['component', 'preVet'].concat(vetted.exclusives)), props.children);
+        var componentProps = props.with || {};
+        return !props.component ? null : React.createElement(props.component, props.with, props.children);
       }
     }
   };
@@ -105,7 +106,7 @@ var Otherwise = exports.Otherwise = (0, _component.component)(function () {
  *
  * @param {Object} props The component props.
  */
-var Switch = exports.Switch = (0, _component.component)(function (kit) {
+var Pick = exports.Pick = (0, _component.component)(function (kit) {
   return function (props) {
     var _this = this;
 

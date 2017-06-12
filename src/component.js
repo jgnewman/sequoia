@@ -4,7 +4,7 @@ import ReactDOM from 'react-dom';
 import PropTypes from 'prop-types';
 import { connect, Provider } from 'react-redux';
 
-import { INTERNALS, mapObject, toggleSymbols, augment, merge } from './utils';
+import { INTERNALS, mapObject, toggleSymbols, augment, merge, ifNested } from './utils';
 import { StoreWrapper } from './store';
 import { requestsPackage, DataAPI } from './data';
 
@@ -85,6 +85,19 @@ class ComponentKit {
   createActions(infuser) {
     this.__cache.actionInfusers = this.__cache.actionInfusers || [];
     this.__cache.actionInfusers.push(infuser);
+    return this;
+  }
+
+  /**
+   * Allow the user to hook into certain component lifeCycle events.
+   * 
+   * @param {Object} handlers The handlers for lifecycle methods.
+   * 
+   * @return {ComponentKit}
+   */
+  createLifecycle(handlers) {
+    this.__cache.lifecycle = this.__cache.lifecycle || {};
+    Object.assign(this.__cache.lifecycle, handlers);
     return this;
   }
 
@@ -222,6 +235,30 @@ export function component(generator) {
     constructor() {
       super();
     }
+
+    // componentWillMount() {
+    //   return ifNested(cache, ['__lifecycle', 'componentWillMount'], fn => fn())
+    // }
+    // componentDidMount() {
+    //   return ifNested(cache, ['__lifecycle', 'componentDidMount'], fn => fn())
+    // }
+    // componentWillReceiveProps(next) {
+    //   return ifNested(cache, ['__lifecycle', 'componentWillReceiveProps'], fn => fn(next))
+    // }
+    // shouldComponentUpdate(next) {
+    //   const cur = this.props;
+    //   return ifNested(cache, ['__lifecycle', 'shouldComponentUpdate'], fn => fn(cur, next))
+    // }
+    // componentWillUpdate(next) {
+    //   const cur = this.props;
+    //   return ifNested(cache, ['__lifecycle', 'componentWillUpdate'], fn => fn(cur, next))
+    // }
+    // componentDidUpdate() {
+    //   return ifNested(cache, ['__lifecycle', 'componentDidUpdate'], fn => fn())
+    // }
+    // componentWillUnmount() {
+    //   return ifNested(cache, ['__lifecycle', 'componentWillUnmount'], fn => fn())
+    // }
 
     render() {
 

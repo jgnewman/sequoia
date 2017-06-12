@@ -1874,6 +1874,8 @@ var exp = {
   subPathMatch: _routing.subPathMatch,
   hashMatch: _routing.hashMatch,
   subHashMatch: _routing.subHashMatch,
+  pick: _routing.pick,
+  when: _routing.when,
 
   /*
    * Pre-made components
@@ -1881,7 +1883,7 @@ var exp = {
   Preload: _premade.Preload,
   Otherwise: _premade.Otherwise,
   Redirect: _premade.Redirect,
-  Switch: _premade.Switch,
+  Pick: _premade.Pick,
   When: _premade.When
 };
 
@@ -1902,7 +1904,7 @@ if (typeof module !== 'undefined') {
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.Preload = exports.Switch = exports.Otherwise = exports.When = exports.Redirect = undefined;
+exports.Preload = exports.Pick = exports.Otherwise = exports.When = exports.Redirect = undefined;
 
 var _react = require('react');
 
@@ -1974,7 +1976,8 @@ var When = exports.When = (0, _component.component)(function (kit) {
          * `component` prop.
          */
       } else {
-        return !props.component ? null : React.createElement(props.component, (0, _utils.removeProps)(props, ['component', 'preVet'].concat(vetted.exclusives)), props.children);
+        var componentProps = props.with || {};
+        return !props.component ? null : React.createElement(props.component, props.with, props.children);
       }
     }
   };
@@ -2004,7 +2007,7 @@ var Otherwise = exports.Otherwise = (0, _component.component)(function () {
  *
  * @param {Object} props The component props.
  */
-var Switch = exports.Switch = (0, _component.component)(function (kit) {
+var Pick = exports.Pick = (0, _component.component)(function (kit) {
   return function (props) {
     var _this = this;
 
@@ -2069,6 +2072,7 @@ var Preload = exports.Preload = (0, _component.component)(function () {
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
+exports.when = undefined;
 exports.createLocation = createLocation;
 exports.createHashRule = createHashRule;
 exports.vetProps = vetProps;
@@ -2077,6 +2081,7 @@ exports.pathMatch = pathMatch;
 exports.subPathMatch = subPathMatch;
 exports.hashMatch = hashMatch;
 exports.subHashMatch = subHashMatch;
+exports.pick = pick;
 
 var _react = require('react');
 
@@ -2090,7 +2095,7 @@ function _interopRequireDefault(obj) {
   return obj && obj.__esModule ? obj : { default: obj };
 }
 
-var EXCLUSIVE_PROPS = ['ok', 'notOk', 'path', 'hash', 'subPath', 'subHash', 'populated', 'empty', 'params', 'dataOk', 'dataNotOk'];
+var EXCLUSIVE_PROPS = ['ok', 'notOk', 'path', 'hash', 'subPath', 'subHash', 'populated', 'empty', 'params', 'dataOk', 'dataNotOk', 'dataPending', 'dataRequested'];
 
 var AFTSLASH = /\/$/;
 var ACTION_STRING = _utils.INTERNALS.HASH_PATH + ':DEFAULT';
@@ -2522,6 +2527,91 @@ function hashMatch(pattern, actual) {
 function subHashMatch(pattern, actual) {
   return testSubPath(pattern, true, actual);
 }
+
+/**
+ * Allow users to execute a functional version of `Pick` that will return
+ * its first truthy argument. If the argument is a function, it will run the
+ * function to determine whether the result is truthy.
+ * 
+ * @param {Any} args A series of possibilities for what to return.
+ * 
+ * @return {Any} Usually some jsx or null. 
+ */
+function pick() {
+  var out = null;
+
+  for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
+    args[_key] = arguments[_key];
+  }
+
+  args.some(function (option) {
+    if (typeof option === 'function') {
+      option = option();
+    }
+    if (option) {
+      out = option;
+      return true;
+    } else {
+      return false;
+    }
+  });
+  return out;
+}
+
+/**
+ * Allow users to functionally execute the concepts of the `When`
+ * component in order to avoid jsx evaluation in certain cases.
+ */
+var when = exports.when = {
+  ok: function ok(val, result) {
+    if (!val) return false;
+    return typeof result === 'function' ? result() : result;
+  },
+  notOk: function notOk(val, result) {
+    return this.ok(!val, result);
+  },
+  path: function path(pattern, realPath, result) {
+    if (arguments.length < 3) {
+      result = realPath;
+      realPath = null;
+    }
+    return this.ok(testPath(pattern, false, realPath), result);
+  },
+  hash: function hash(pattern, realHash, result) {
+    if (arguments.length < 3) {
+      result = realHash;
+      realHash = null;
+    }
+    return this.ok(testPath(pattern, true, realHash), result);
+  },
+  subPath: function subPath(pattern, realPath, result) {
+    if (arguments.length < 3) {
+      result = realPath;
+      realPath = null;
+    }
+    return this.ok(testSubPath(pattern, false, realPath), result);
+  },
+  subHash: function subHash(pattern, realHash, result) {
+    if (arguments.length < 3) {
+      result = realHash;
+      realHash = null;
+    }
+    return this.ok(testSubPath(pattern, true, realHash), result);
+  },
+  populated: function populated(arr, result) {
+    return this.ok(testPopulated(arr), result);
+  },
+  empty: function empty(arr, result) {
+    return this.ok(!testPopulated(arr), result);
+  },
+  params: function params(toMatch, within, result) {
+    if (arguments.length < 3) {
+      result = within;
+      within = null;
+    }
+    return this.ok(testParams(toMatch, within), result);
+  }
+};
 
 /*
 
@@ -3080,6 +3170,16 @@ var _reduxPromise2 = _interopRequireDefault(_reduxPromise);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
+var Basic = (0, _index.component)(function () {
+  return function (props) {
+    return React.createElement(
+      'div',
+      null,
+      props.message
+    );
+  };
+});
+
 var Whatever = (0, _index.component)(function (kit) {
 
   kit.createHandlers({
@@ -3092,11 +3192,11 @@ var Whatever = (0, _index.component)(function (kit) {
     };
   });
 
-  return React.createElement(
-    'div',
-    null,
-    'Oi m8'
-  );
+  return (0, _index.pick)(_index.when.ok(true, function () {
+    return React.createElement(Basic, { message: 'oi m8' });
+  }), function () {
+    return React.createElement(Basic, { message: 'oi m9' });
+  });
 });
 
 var Hello = (0, _index.component)(function (kit) {
@@ -3148,7 +3248,7 @@ var Hello = (0, _index.component)(function (kit) {
         props.helloWorld
       ),
       React.createElement(
-        _index.Switch,
+        _index.Pick,
         null,
         React.createElement(
           _index.When,
@@ -3237,6 +3337,20 @@ var App2 = (0, _index.application)(function (appKit) {
     );
   };
 });
+
+/*
+
+pick(
+  
+  when.ok(true, () => (
+    <Basic message="oi m8" />
+  )),
+  
+  () => <Basic message="oi m9" />
+
+)
+
+*/
 
 },{"../../../bin/index":6,"redux-promise":268}],12:[function(require,module,exports){
 module.exports = require('./lib/axios');

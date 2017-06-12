@@ -341,11 +341,11 @@ To make this a whole lot nicer, Sequoia gives you a pre-made component called `W
 
 `When` works like an `if` statement, **not** like an `if...else` statement. In other words, you can create as many instances of `When` as you like and each one will render independently of all the others.
 
-If you need to create an `if...else` situation, you just need to combine the `When` component with a couple other pre-made components, namely `Switch` and `Otherwise`:
+If you need to create an `if...else` situation, you just need to combine the `When` component with a couple other pre-made components, namely `Pick` and `Otherwise`:
 
 ```jsx
 <div>
-  <Switch>
+  <Pick>
 
     <When ok={ifCase}>
       <div>Hello</div>
@@ -359,16 +359,36 @@ If you need to create an `if...else` situation, you just need to combine the `Wh
       <div>I'm the else case!</div>
     </Otherwise>
 
-  </Switch>
+  </Pick>
 </div>
 ```
 
-The `Switch` component takes instances of `When` and `Otherwise` as its children and will execute the first one that resolves truthily. This way, you can check as many conditions as you like, knowing that only one of them will ever get executed. `Otherwise` always resolves truthily so you'll want to make sure it falls at the end, just like in a standard `else` case.
+The `Pick` component takes instances of `When` and `Otherwise` as its children and will execute the first one that resolves truthily. This way, you can check as many conditions as you like, knowing that only one of them will ever get executed. `Otherwise` always resolves truthily so you'll want to make sure it falls at the end, just like in a standard `else` case.
 
-What's interesting is that you have lots of other options besides just `ok` for `When` component props, and some of them can turn this combination of decision-making components into a pretty nice little router. For example:
+You may have noticed that even though only one of our divs will end up being rendered in the DOM, the JSX is still being evaluated to a degree. In other words, objects representing DOM elements are being generated, just not rendered. If you would like to prevent this, you have two options.
+
+First, you can add a couple of props to `When`:
 
 ```jsx
-import { application, Switch, When } from 'sequoiajs';
+<When ok={true} component={ChildComponent} with={{ props }} />
+```
+
+This way, you can specify a child component to render if the condition is truthy and you can pass in an object of props to pass to that component when it's rendered.
+
+Your second option is to use a `when` function rather than a `When` component:
+
+```jsx
+when.ok(true, () = (
+  <div>Hello</div>
+))
+```
+
+This way, you can generated some nested jsx and still avoid evaluating it at all unless the condition is truthy.
+
+What's also interesting is that you have lots of other options besides just `ok` for `When` and `when`, and some of them can turn this combination of decision-making components into a pretty nice little router. For example:
+
+```jsx
+import { application, Pick, When } from 'sequoiajs';
 
 // Import some components that render out different page content.
 import { HomePage } from './homepage';
@@ -380,11 +400,11 @@ application(appKit => {
   appKit.renderIn('#app');
 
   return () => (
-    <Switch>
+    <Pick>
       <When path="/" component={HomePage} />
       <When path="/about" component={AboutPage} />
       <When path="/contact" component={ContactPage} />
-    </Switch>
+    </Pick>
   )
 })
 ```
@@ -645,21 +665,11 @@ const NotFound = component(() => {
 
 const Router = component(() => {
   return () => (
-    <Switch>
-
-      <When path={'/'}>
-        <Home />
-      </When>
-
-      <When path={'/about'}>
-        <About />
-      </When>
-
-      <Otherwise>
-        <NotFound />
-      </Otherwise>
-
-    </Switch>
+    <Pick>
+      <When path={'/'} component={Home} />
+      <When path={'/about'} component={About} />
+      <Otherwise component={NotFound} />
+    </Pick>
   )
 })
 
