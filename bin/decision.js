@@ -9,6 +9,7 @@ var _createClass = function () { function defineProperties(target, props) { for 
 
 exports.pick = pick;
 exports.setLocationContext = setLocationContext;
+exports.getLocationContext = getLocationContext;
 
 var _react = require('react');
 
@@ -354,6 +355,15 @@ function pick() {
  */
 function setLocationContext(loc) {
   locationContext = createLocation(loc);
+}
+
+/**
+ * Returns the current location context.
+ * 
+ * @return {Object}
+ */
+function getLocationContext() {
+  return locationContext;
 }
 
 /*

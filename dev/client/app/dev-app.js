@@ -47,7 +47,7 @@ const Inner = component({
         <a onClick={props.handlers.handleClick.with('foo')}>
           <strong>Click me</strong>
         </a>
-        <List />
+        {when.hash('#').then(List)}
       </div>
     )
   }

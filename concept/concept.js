@@ -144,6 +144,6 @@ TODO:
 - [x] make sure hash works when empty like `when.hash('#')`
 - [x] write tests
 - [x] write todomvc
-- [ ] components not updating on hash change apparently
+- [x] components not updating on hash change apparently
 - [x] when handlers cache props, all instances of that component will get the props from the instance that cached the handlers
 */

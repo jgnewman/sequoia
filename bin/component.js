@@ -22,6 +22,8 @@ var _utils = require('./utils');
 
 var _state = require('./state');
 
+var _decision = require('./decision');
+
 var _http = require('./http');
 
 var _http2 = _interopRequireDefault(_http);
@@ -145,8 +147,23 @@ function robustifyComponent(component, settings) {
 
       _this.state = {};
       _this.watcher = function (newState) {
-        return _this.setState(newState.get());
+        _this.setState((0, _utils.extend)(_this.state, newState.get()));
       };
+
+      /*
+       * If we're getting rendered into the DOM, track
+       * hash paths on the state. Whenever a hash path
+       * changes, trap that so we can trigger a re-render.
+       */
+      if (settings.el && typeof window !== 'undefined') {
+        _this.state.hash = (0, _decision.getLocationContext)().hash;
+        window.addEventListener('hashchange', function () {
+          _this.setState((0, _utils.extend)(_this.state, {
+            "@@SQ_Hash": (0, _decision.getLocationContext)().hash
+          }));
+        });
+      }
+
       return _this;
     }
 
@@ -176,7 +193,7 @@ function robustifyComponent(component, settings) {
 
         /*
          * Children should be given access to a state property
-         * as well as a render target if we're rendering.
+         * as well as a current hash and render target if we're rendering.
          */
         childContext = {
           "@@SQ_State": stateCache,
@@ -397,6 +414,7 @@ function createBasicComponent(settings) {
    */
   if (settings.ensure) {
     TypeChecker = function TypeChecker() {};
+    TypeChecker.displayName = ('\n      TypeChecker:' + (settings.name || settings.render.name || 'Component') + '\n    ').trim();
     TypeChecker.propTypes = settings.ensure(_propTypes2.default);
   }
 

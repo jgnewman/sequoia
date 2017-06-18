@@ -4,6 +4,7 @@ import PropTypes from 'prop-types';
 
 import { forProps, extend } from './utils';
 import { createState } from './state';
+import { getLocationContext } from './decision';
 import http from './http';
 
 let fauxState;
@@ -105,7 +106,24 @@ function robustifyComponent(component, settings) {
     constructor() {
       super();
       this.state = {};
-      this.watcher = newState => this.setState(newState.get());
+      this.watcher = newState => {
+        this.setState(extend(this.state, newState.get()))
+      };
+
+      /*
+       * If we're getting rendered into the DOM, track
+       * hash paths on the state. Whenever a hash path
+       * changes, trap that so we can trigger a re-render.
+       */
+      if (settings.el && typeof window !== 'undefined') {
+        this.state.hash = getLocationContext().hash;
+        window.addEventListener('hashchange', () => {
+          this.setState(extend(this.state, {
+            "@@SQ_Hash": getLocationContext().hash
+          }))
+        })
+      }
+
     }
 
     /**
@@ -130,7 +148,7 @@ function robustifyComponent(component, settings) {
 
       /*
        * Children should be given access to a state property
-       * as well as a render target if we're rendering.
+       * as well as a current hash and render target if we're rendering.
        */
       childContext = {
         "@@SQ_State": stateCache,
@@ -322,6 +340,9 @@ function createBasicComponent(settings) {
    */
   if (settings.ensure) {
     TypeChecker = () => {};
+    TypeChecker.displayName = `
+      TypeChecker:${settings.name || settings.render.name || 'Component'}
+    `.trim();
     TypeChecker.propTypes = settings.ensure(PropTypes);
   }
 

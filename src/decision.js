@@ -339,6 +339,15 @@ export function setLocationContext(loc) {
   locationContext = createLocation(loc);
 }
 
+/**
+ * Returns the current location context.
+ * 
+ * @return {Object}
+ */
+export function getLocationContext() {
+  return locationContext;
+}
+
 /*
 
 {when.ok(true).then(() => <div></div>)}
