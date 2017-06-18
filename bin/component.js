@@ -377,12 +377,11 @@ function buildLifecycle(proto, methods) {
  * @return {Component}
  */
 function createBasicComponent(settings) {
-  var refCache = void 0;
   var propCache = void 0;
   var helperCache = void 0;
   var handlerCache = void 0;
-  var proxyComponent = void 0;
   var expectedContext = void 0;
+  var TypeChecker = void 0;
 
   /*
    * If the user provided a stateless component function, pass it
@@ -397,8 +396,8 @@ function createBasicComponent(settings) {
    * a no-op component for proxying a proptype check.
    */
   if (settings.ensure) {
-    proxyComponent = function proxyComponent() {};
-    proxyComponent.propTypes = settings.ensure(_propTypes2.default);
+    TypeChecker = function TypeChecker() {};
+    TypeChecker.propTypes = settings.ensure(_propTypes2.default);
   }
 
   /*
@@ -434,8 +433,6 @@ function createBasicComponent(settings) {
         var _this3 = this;
 
         var newProps = {};
-        propCache = {};
-        refCache = this.refs;
 
         /*
          * Map state values to component props.
@@ -454,9 +451,9 @@ function createBasicComponent(settings) {
           if (!handlerCache) {
             handlerCache = {};
             cacheHandlers(handlerCache, settings.handlers, function () {
-              return propCache;
+              return _this3.genProps();
             }, function () {
-              return refCache;
+              return _this3.refs;
             });
           }
           newProps.handlers = extendIfExists(this.props.handlers, handlerCache);
@@ -482,11 +479,9 @@ function createBasicComponent(settings) {
         }
 
         /*
-         * Merge the inherited props and the new props and cache
-         * them locally so that handlers will have access to them.
+         * Merge the inherited props and the new props.
          */
-        Object.assign(propCache, this.props, newProps);
-        return propCache;
+        return (0, _utils.extend)(this.props, newProps);
       }
 
       /**
@@ -498,7 +493,7 @@ function createBasicComponent(settings) {
       key: 'render',
       value: function render() {
         var props = this.genProps();
-        proxyComponent && React.createElement(proxyComponent, props);
+        TypeChecker && React.createElement(TypeChecker, props);
         return (settings.render || noop)(this.genProps());
       }
     }], [{

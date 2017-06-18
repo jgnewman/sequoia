@@ -18,7 +18,9 @@ const Inner = component({
       <div>
         <div>{props.ctxFoo}</div>
         <div>{props.text}</div>
-        <a onClick={props.handlers.handleClick.with('foo')}>Click me</a>
+        <a onClick={props.handlers.handleClick.with('foo')}>
+          <strong>Click me</strong>
+        </a>
       </div>
     )
   }

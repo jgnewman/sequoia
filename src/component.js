@@ -302,12 +302,11 @@ function buildLifecycle(proto, methods) {
  * @return {Component}
  */
 function createBasicComponent(settings) {
-  let refCache;
   let propCache;
   let helperCache;
   let handlerCache;
-  let proxyComponent;
   let expectedContext;
+  let TypeChecker;
 
   /*
    * If the user provided a stateless component function, pass it
@@ -322,8 +321,8 @@ function createBasicComponent(settings) {
    * a no-op component for proxying a proptype check.
    */
   if (settings.ensure) {
-    proxyComponent = () => {};
-    proxyComponent.propTypes = settings.ensure(PropTypes);
+    TypeChecker = () => {};
+    TypeChecker.propTypes = settings.ensure(PropTypes);
   }
 
   /*
@@ -353,8 +352,6 @@ function createBasicComponent(settings) {
      */
     genProps() {
       const newProps = {};
-      propCache = {};
-      refCache = this.refs;
 
       /*
        * Map state values to component props.
@@ -375,8 +372,8 @@ function createBasicComponent(settings) {
           cacheHandlers(
             handlerCache,
             settings.handlers,
-            () => propCache,
-            () => refCache
+            () => this.genProps(),
+            () => this.refs
           );
         }
         newProps.handlers = extendIfExists(this.props.handlers, handlerCache);
@@ -402,11 +399,9 @@ function createBasicComponent(settings) {
       }
 
       /*
-       * Merge the inherited props and the new props and cache
-       * them locally so that handlers will have access to them.
+       * Merge the inherited props and the new props.
        */
-      Object.assign(propCache, this.props, newProps);
-      return propCache;
+      return extend(this.props, newProps);
     }
 
     /**
@@ -415,7 +410,7 @@ function createBasicComponent(settings) {
      */
     render() {
       const props = this.genProps();
-      proxyComponent && React.createElement(proxyComponent, props);
+      TypeChecker && React.createElement(TypeChecker, props);
       return (settings.render || noop)(this.genProps());
     }
   }
