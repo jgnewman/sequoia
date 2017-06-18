@@ -1,154 +1,44 @@
-const symbol1 = '@@SQ_SYMBOL_TOGGLE_1';
-const symbol2 = '@@SQ_SYMBOL_TOGGLE_2';
-
-const events = {};
-
 /**
- * Some internal system constants.
- *
- * @type {Object}
+ * Loops over properties in an object calling an iterator for
+ * each one.
+ * 
+ * @param {Object}   object   The object to loop over.
+ * @param {Function} iterator Takes val, key. 
+ * 
+ * @return {undefined}
  */
-export const INTERNALS = {
-  LOC_REF      : "@@SQ_Location",
-  STORE_REF    : "@@SQ_Store",
-  PRELOAD_REF  : "@@SQ_Preload",
-  DATA_REF     : "@@SQ_Data",
-  DATA_RULE    : "@@SQ_DataRule",
-  DATA_DEFAULT : "@@SQ_DataDefault",
-  DATA_PENDING : "@@SQ_DataPending",
-  DATA_ERROR   : "@@SQ_DataError",
-  DATA_SUCCESS : "@@SQ_DataSuccess",
-  HASH_PATH    : "@@SQ_HashPath",
-  REHYDRATED   : "@@SQ_Rehydrated",
-  INTERNAL_KEY : "@@SQ_InternalKey"
-}
-
-/*
- * Fake `window` if we don't have it.
- */
-export const win = typeof window !== 'undefined' ? window : {
-  location: {search: '', hash: ''},
-  addEventListener: function () {}
-};
-
-/**
- * Calls `forEach` on an object and returns a new
- * object with mapped values.
- *
- * @param  {Object}   obj       Plain object.
- * @param  {Function} iterator  Takes val, key.
- *
- * @return {Object} New object with same keys, new vals.
- */
-export function mapObject(obj, iterator) {
-  const out = {};
-  Object.keys(obj).forEach(key => {
-    out[key] = iterator(obj[key], key);
+export function forProps(object, iterator) {
+  Object.keys(object).forEach(key => {
+    iterator(object[key], key);
   })
-  return out;
 }
 
 /**
- * Creates a nice error object. Not automatically thrown.
- *
- * @param  {String} message The error message.
- *
- * @return {Error}  The new error object.
+ * Shortcuts Object.assign to create a new object.
+ * 
+ * @param {Objects} objects Objects with properties to copy.
+ * 
+ * @return {Object} A new object containing all properties.
  */
-export function createError(message) {
-  return new Error('[sequoia] ' + message.trim().replace(/\n\s+/g, ' '));
-}
-
-/**
- * A strange little function factory where the created function toggles
- * between 2 symbols whenever it's called.
- *
- * @return {Function} The toggler.
- */
-export function toggleSymbols() {
-  let activeSym = symbol1;
-  const out = () => {
-    activeSym = activeSym === symbol1 ? symbol2 : symbol1;
-    return activeSym;
-  };
-  out.current = () => activeSym;
-  return out;
-}
-
-/**
- * Remove all the named properties from an object.
- *
- * @param  {Object}  obj   The object to start from.
- * @param  {Array}   props The names of properties to remove.
- *
- * @return {Object}  A new object where `props` have been excluded.
- */
-export function removeProps(obj, props) {
-  const newObj = {};
-  Object.keys(obj).forEach(key => {
-    if (props.indexOf(key) === -1) {
-      newObj[key] = obj[key];
-    }
-  });
-  return newObj;
-}
-
-/**
- * Subscribe to an internal event.
- *
- * @param  {String}   eventName The name of the event.
- * @param  {Function} handler   Handles the event.
- *
- * @return {undefined}
- */
-export function subscribe(eventName, handler) {
-  events[eventName] = events[eventName] || [];
-  events[eventName].push(handler);
-}
-
-/**
- * Publish an internal event.
- *
- * @param  {String} eventName The name of the event.
- * @param  {Any}    args      Passed to all event handlers.
- *
- * @return {undefined}
- */
-export function publish(eventName, ...args) {
-  if (events[eventName]) {
-    events[eventName].forEach(handler => handler(...args));
-  }
-}
-
-/**
- * Wraps Object.assign to assign multiple props into a new object.
- *
- * @param  {Objects} objects The objects to be merged together.
- *
- * @return {Object}
- */
-export function merge(...objects) {
+export function extend(...objects) {
   return Object.assign({}, ...objects);
 }
 
 /**
- * If an object has a provided nesting, run a function with the value
- * at that nested level.
+ * Allows us to create a new object with some properties
+ * removed.
  * 
- * @param {Object}   object A beginning object to start from. 
- * @param {Array}    nest   Strings denoting keys to step down to. 
- * @param {Function} cb     Called with the located value and returned. 
+ * @param {Object} object From which to remove properties.
+ * @param {Array}  list   Names of properties to remove.
+ * 
+ * @return {Object} A new object minus named properties.
  */
-export function ifNested(object, nest, cb) {
-  if (!object) return;
-  let out = object;
-  nest.every(item => {
-    out = out[item];
-    return !!out;
+export function removeProps(object, list) {
+  const out = {};
+  forProps(object, (val, key) => {
+    if (list.indexOf(key) === -1) {
+      out[key] = val;
+    }
   });
-  if (out) {
-    return cb(out);
-  } else {
-    return out;
-  }
+  return out;
 }

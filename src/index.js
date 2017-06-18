@@ -1,50 +1,48 @@
 import React from 'react';
-import { merge } from './utils';
-import { collect } from './collect';
-import { component } from './component';
-import { application } from './application';
-import { constants, uuid } from './constants';
-import { Redirect, When, Otherwise, Pick, Preload } from './premade';
-import { pathMatch, subPathMatch, hashMatch, subHashMatch, pick, when } from './routing';
+import uuid from 'uuid';
+import { extend } from './utils';
+import { createState, enableDevMode, disableDevMode } from './state';
+import { pick, when, setLocationContext } from './decision';
+import component from './component';
+import collect from './collect';
+import http from './http';
+import { Preload } from './premade';
+
+function getHttpApi() {
+  return http;
+}
+
+/*
+ * Make sure the React global exists.
+ */
+global.React = React;
 
 /*
  * Package up our exports
  */
 const exp = {
-
-  /*
-   * Functions
-   */
-  application: application,
-  collect: collect,
-  component: component,
-  constants: constants,
+  extend,
+  uuid,
+  createState,
+  enableDevMode,
+  disableDevMode,
+  component,
+  collect,
+  pick,
+  when,
+  setLocationContext,
+  Preload,
   createElement: React.createElement,
   cloneElement: React.cloneElement,
-  merge: merge,
-  uuid: uuid,
-  pathMatch: pathMatch,
-  subPathMatch: subPathMatch,
-  hashMatch: hashMatch,
-  subHashMatch: subHashMatch,
-  pick: pick,
-  when: when,
-
-  /*
-   * Pre-made components
-   */
-  Preload: Preload,
-  Otherwise: Otherwise,
-  Redirect: Redirect,
-  Pick: Pick,
-  When: When
-}
+  getHttpApi
+};
 
 /*
  * Export for Node and the browser.
  */
 if (typeof window !== 'undefined') {
   window.Sequoia = exp;
+  window.React = React;
 }
 
 if (typeof module !== 'undefined') {

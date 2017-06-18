@@ -1,153 +1,118 @@
 import {
-  application,
+  enableDevMode,
+  createState,
   component,
-  collect,
-  Pick,
-  When,
-  Otherwise,
-  uuid,
-  merge,
   pick,
   when
 } from '../../../bin/index';
-import promiseWare from 'redux-promise'
 
-const Basic = component(() => props => {
-  return <div>{props.message}</div>
-})
+when.hash('#').then(() => console.log('hash is #'))
 
-const Whatever = component(kit => {
+enableDevMode();
 
-  kit.createHandlers({
-    whatever: () => {},
-  })
-
-  kit.createActions(rules => ({
-    whatever: rules.section1.UPDATE_GREETING
-  }))
-
-  return pick(
-  
-    when.ok(true, () => (
-      <Basic message="oi m8" />
-    )),
-    
-    () => <Basic message="oi m9" />
-
-  )
-})
-
-const Hello = component(kit => {
-
-  kit.ensure({
-    helloWorld: kit.ensure.string.isRequired
-  })
-
-  kit.observe(state => ({
-    helloWorld: state.section1.helloWorld
-  }))
-
-  kit.createHandlers({
-    handleClick: (evt, props, extra) => {
-      console.log('handling event', evt, props, extra)
-      console.log(props.ref.get('umbrellaDiv'))
-      props.actions.dispatcher()
-      //props.actions.example()
-    }
-  })
-
-  kit.createActions((rules, reqs) => ({
-    updateGreeting: () => ({ rule: rules.section1.UPDATE_GREETING }),
-    dispatcher: () => (actions, getState) => {
-      console.log(getState())
-      actions.updateGreeting()
-      actions.example()
-    },
-    example: () => reqs.get('MY_DATA', '/')
-  }))
-
-  return (props) => {
+const Inner = component({
+  name: 'Inner',
+  contextProps: ['ctxFoo'],
+  render(props) {
     return (
-      <div ref={props.ref('umbrellaDiv')}>
-        <div onClick={props.handlers.handleClick.with('foo')}>{props.helloWorld}</div>
-        <Pick>
-          <When dataOk={'MY_DATA'}>
-            <div>Some data: {kit.data.value('MY_DATA')}</div>
-          </When>
-          <Otherwise>
-            <div>Nothing to see here, boss.</div>
-          </Otherwise>
-        </Pick>
-        <Whatever handlers={props.handlers} actions={props.actions}/>
+      <div>
+        <div>{props.ctxFoo}</div>
+        <div>{props.text}</div>
+        <a onClick={props.handlers.handleClick.with('foo')}>Click me</a>
       </div>
     )
   }
-
 })
 
+const App = component({
 
-const App = application(appKit => {
+  name: 'Application',
+  
+  el: '#app',
 
-  appKit.renderIn('#app')
-
-  appKit.config({
-    stateMiddleware: [promiseWare],
-    disableDevTools: false, // default
-    disableAutoPersist: false, // default
-    autoPersist: {
-      disableRenderDelay: false, // default
-      keyPrefix: 'testapp',
-      done: function () {}
+  state: createState(
+    JSON.parse(localStorage.getItem('state') || 'null') || {
+      app: {
+        firstName: 'John',
+        lastName: 'Newman'
+      }
     }
-  })
+  ).beforeTransform(newValues => {
+    localStorage.setItem('state', JSON.stringify(newValues))
+  }),
 
-  appKit.createRules('section1', {
-    DEFAULT: state => merge(state, {
-      helloWorld: 'Hello, world!',
-      bar: 'bar'
+  childContext: {
+    ctxFoo: 'I am in the context!'
+  },
+  
+  observe: state => ({
+    firstName: state.app.firstName,
+    lastName: state.app.lastName
+  }),
+  
+  createRules: (state, http) => ({
+
+    initial: function () {
+      http.get('/').then(res => console.log(res)).catch(err => console.log(err))
+    },
+    
+    johnize: () => state.update('app', {
+      firstName: 'John',
+      lastName: 'Newman'
     }),
-    UPDATE_GREETING: (state, payload) => merge(state, {
-      helloWorld: 'Goodbye, world!'
+    
+    calvinize: () => state.update('app', {
+      firstName: 'Bill',
+      lastName: 'Waterson'
     })
-  })
 
-  appKit.createRules('section2', {
-    DEFAULT: state => merge(state, {
-      baz: 'baz',
-      qux: 'qux'
-    })
-  })
+  }),
 
-  return <Hello />
-})
+  ensure: types => ({
+    firstName: types.string.isRequired,
+    lastName: types.string.isRequired
+  }),
 
+  handlers: {
+    
+    handleClick: (pack, foo) => {
+      pack.props.helpers.custom()
+      console.log(foo);
+      if (pack.props.firstName === 'John') {
+        pack.props.rules.calvinize()
+      } else {
+        pack.props.rules.johnize()
+      }
+    },
+    
+    handleClickName: (pack) => {
+      console.log(pack.refs.myDiv)
+    }
 
-const App2 = application(appKit => {
+  },
 
-  appKit.renderIn('#app2')
+  helpers: {
+    custom: () => console.log('custom prop worked')
+  },
 
-  return () => (
-    <div>
-      This is a second app on the same page!
-      <When params={{foo: 'bar'}}>
-        <span>Params successfully detected!</span>
-      </When>
-    </div>
-  )
-
-})
-
-
-/*
-
-pick(
+  createLifecycle: () => ({
+    afterMount: (props) => console.log('mounted', props)
+  }),
   
-  when.ok(true, () => (
-    <Basic message="oi m8" />
-  )),
-  
-  () => <Basic message="oi m9" />
-
-)
-
-*/
+  render: props => {
+    return (
+      <div ref="myDiv" onClick={props.handlers.handleClickName}>
+        <Inner
+          text={props.firstName + ' ' + props.lastName}
+          rules={props.rules}
+          handlers={props.handlers}
+        />
+        {when.ok(true).then(() => 'Ok was true!')}
+        {pick(
+          when.ok(false).choose(() => 'I should be ignored.'),
+          when.ok(true).choose(() => 'I should show up!')
+        )}
+      </div>
+    )
+  }
+})

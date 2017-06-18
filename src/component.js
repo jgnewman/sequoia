@@ -1,378 +1,473 @@
-import React from 'react';
-import { Children } from 'react';
+import { Component as ReactComponent } from 'react';
 import ReactDOM from 'react-dom';
 import PropTypes from 'prop-types';
-import { connect, Provider } from 'react-redux';
 
-import { INTERNALS, mapObject, toggleSymbols, augment, merge, ifNested } from './utils';
-import { StoreWrapper } from './store';
-import { requestsPackage, DataAPI } from './data';
+import { forProps, extend } from './utils';
+import { createState } from './state';
+import http from './http';
 
-/**
- * @class
- *
- * Provides tools for configuring a component.
+let fauxState;
+const noop = (() => null);
+
+/*
+ * Will be used to map user's lifecycle methods
+ * to React lifecycle methods.
  */
-class ComponentKit {
+const LIFECYCLE_MAP = {
+  beforeMount   : 'componentWillMount',
+  afterMount    : 'componentDidMount',
+  beforeUnmount : 'componentWillUnmount',
+  beforeUpdate  : 'componentWillUpdate',
+  afterUpdate   : 'componentDidUpdate',
+  shouldUpdate  : 'shouldComponentUpdate'
+};
 
-  /*
-   * Build the instance with a storage place.
-   */
-  constructor(cache, getStoreWrapper) {
-    this.__cache = cache;
-
-    /*
-     * Give the user a data api for accessing Copenhagen data on
-     * the state.
-     */
-    this.data = new DataAPI(getStoreWrapper)
-
-    /*
-     * Map PropTypes to ensure, but don't do it if we
-     * already did it.
-     */
-    if (PropTypes.string !== this.ensure.string) {
-      Object.assign(this.ensure, PropTypes);
-    }
-  }
-
-  /**
-   * Allow the user to validate prop types on a component.
-   *
-   * @param  {Object} propTypes Defines the prop types.
-   *
-   * @return {ComponentKit}
-   */
-  ensure(propTypes) {
-    const typeCache = this.__cache.propTypes = this.__cache.propTypes || {};
-    mapObject(propTypes, (val, propType) => typeCache[propType] = val);
-    return this;
-  }
-
-  /**
-   * Allow the user to map state to props.
-   *
-   * @param  {Function} infuser Takes `state` and returns a collection of props.
-   *
-   * @return {ComponentKit}
-   */
-  observe(infuser) {
-    this.__cache.stateInfusers = this.__cache.stateInfusers || [];
-    this.__cache.stateInfusers.push(infuser);
-    return this;
-  }
-
-  /**
-   * Allow the user to run event handlers with both event and current props.
-   *
-   * @param  {Object} handlers The handlers to infuse.
-   *
-   * @return {ComponentKit}
-   */
-  createHandlers(handlers) {
-    this.__cache.handlers = this.__cache.handlers || {};
-    Object.assign(this.__cache.handlers, handlers);
-    return this;
-  }
-
-  /**
-   * Allow the user to map dispatch to props.
-   *
-   * @param  {Function} infuser Takes `actionSymbols` and returns a collection of action functions.
-   *
-   * @return {ComponentKit}
-   */
-  createActions(infuser) {
-    this.__cache.actionInfusers = this.__cache.actionInfusers || [];
-    this.__cache.actionInfusers.push(infuser);
-    return this;
-  }
-
-  /**
-   * Allow the user to hook into certain component lifeCycle events.
-   * 
-   * @param {Object} handlers The handlers for lifecycle methods.
-   * 
-   * @return {ComponentKit}
-   */
-  createLifecycle(handlers) {
-    this.__cache.lifecycle = this.__cache.lifecycle || {};
-    Object.assign(this.__cache.lifecycle, handlers);
-    return this;
-  }
-
+/*
+ * For rare cases when a state may be desirable but is
+ * NEVER updated, we can create a shared mock state.
+ */
+function mockState() {
+  fauxState = fauxState || createState({});
+  return fauxState;
 }
 
 /**
- * Create a function that can be used to trap references
- * to elements when used in a `ref=` attribute. Subsequently
- * you will be able to use `ref.get` to retrieve the element.
- *
- * @return {Function} The referencer.
+ * Maps a value's type to it's corresponding
+ * prop type.
+ * 
+ * @param {Any} val Some truthy value.
+ * 
+ * @return {Function} The corresponding prop type.
  */
-function createReferencer() {
-  const captures = {};
-
-  /*
-   * Used like `ref={ref('foo')}`.
-   * It returns a function that captures the element under the given name.
-   */
-  const ref = (name) => (elem) => {
-    if (elem) {
-      captures[name] = elem;
-    }
-  }
-
-  /*
-   * Retrieves one of our captured references by name.
-   */
-  ref.get = (name) => captures[name];
-
-  /*
-   * Retrieves a captured reference by name after some time.
-   * Useful for cases when you need to call `scroll` or `focus`.
-   */
-  ref.getAsync = (name, duration, callback) => {
-    if (typeof duration === 'function') {
-      callback = duration;
-      duration = 0;
-    }
-    setTimeout(() => {
-      callback(captures[name]);
-    }, duration);
-  };
-
-  return ref;
+function mapPropType(val) {
+  let type = typeof val;
+  if (type === 'boolean') return PropTypes.bool;
+  if (type === 'function') return PropTypes.func;
+  return PropTypes[type] ? PropTypes[type] : PropTypes.any;
 }
 
 /**
- * Generates a function that calls dispatch on a store.
- *
- * @param  {StoreWrapper} storeWrapper A storeWrapper instance.
- * @param  {Object}       actionProps  The object ultimately containing all of the actions.
- * @param  {Function}     fn           A function that returns an action to be dispatched.
- *
- * @return {Function} The new dispatcher function.
+ * Attaches a contextTypes object to a component.
+ * 
+ * @param {Component} component A component instance.
+ * @param {Array}     userVals  Extra context items the user expects.
+ * 
+ * @return {undefined}
  */
-function createDispatcher(storeWrapper, actionProps, fn) {
-
-  /*
-   * This will be the actual action function.
-   */
-  return (...payload) => {
-
-    /*
-     * If the user gave us a function, we call it here. We end up with
-     * the type needed for the dispatch.
-     */
-    let actionType = typeof fn === 'function' ? fn(...payload) : fn;
-
-    /*
-     * If we got a thunk, re-wrap it so that it access to the other
-     * actions as well.
-     */
-    if (typeof actionType === 'function') {
-      const origActionType = actionType;
-      actionType = (dispatch) => {
-        return origActionType(actionProps, () => storeWrapper.getClean(INTERNALS.INTERNAL_KEY), dispatch);
-      }
-    }
-
-    /*
-     * If the action type was a string, make an object out of
-     * it. Otherwise, we assume it's already an object or a thunk.
-     */
-    if (typeof actionType === 'string') {
-      actionType = { type: actionType };
-    } else if (typeof actionType === 'object' && actionType.rule && !actionType.type) {
-      actionType.type = actionType.rule;
-    }
-
-    /*
-     * Dispatch the action type
-     */
-    return storeWrapper.dispatch(actionType);
+function attachContextTypes(component, userVals=[]) {
+  const contextTypes = {
+    "@@SQ_State": PropTypes.object,
+    "@@SQ_Target": PropTypes.string
   }
+  userVals.forEach(val => contextTypes[val] = PropTypes.any);
+  component.contextTypes = contextTypes;
 }
 
 /**
- * Create a new component.
- *
- * @param  {Function} generator  Takes an application kit and returns a render function.
- *
- * @return {Component} A React component.
+ * If an item exists, extend it with the extras. Otherwise,
+ * return the extras.
+ * 
+ * @param {Maybe Object} item   To be extended if it exists.
+ * @param {Object}       extras Included in final result.
+ * 
+ * @return {Object} Either an extended object or the extras.
  */
-export function component(generator) {
-  let storeWrapper;
-  const getStoreWrapper = secretKey => {
-    return secretKey === INTERNALS.INTERNAL_KEY ? storeWrapper : null;
-  };
+function extendIfExists(item, extras) {
+  return item ? extend(item, extras) : extras;
+}
 
-  const dataToggler = toggleSymbols();
-  let prevData = {};
-
-  /*
-   * When the generator runs, it will populate the cache (via kit methods) with
-   * data informing how to map state to props, create actions, etc.
-   */
-  const cache = {};
-  let   renderFn = generator(new ComponentKit(cache, getStoreWrapper));
-
-  /*
-   * If the component returns pure JSX, wrap it in a function.
-   */
-  if(renderFn && renderFn.$$typeof === Symbol.for('react.element')) {
-    const origRender = renderFn;
-    renderFn = function () {
-      return typeof origRender === 'function' ? origRender.bind(this) : origRender;
-    };
-  }
+/**
+ * Generates a component that subscribes to the state.
+ * When the state updates, it adds receives an extra prop called
+ * "state" with all of the state values in it.
+ * 
+ * @param {Component} component  A React component.
+ * @param {Object}    settings   Describes how the component should work.
+ * 
+ * @return {Component}
+ */
+function robustifyComponent(component, settings) {
+  let ruleCache;
+  let stateCache;
 
   /*
-   * Create a proxy component so that we can access render and context.
+   * Create a more robust React component that can handle
+   * state subscriptions and context bindings.
    */
-  const Component = class extends React.Component {
+  class StateBinding extends ReactComponent {
+
+    /**
+     * @constructor
+     * The component state will be used to track the global
+     * state values. This will cause re-renders whenever
+     * state changes occur.
+     */
     constructor() {
       super();
+      this.state = {};
+      this.watcher = newState => this.setState(newState.get());
     }
 
-    // componentWillMount() {
-    //   return ifNested(cache, ['__lifecycle', 'componentWillMount'], fn => fn())
-    // }
-    // componentDidMount() {
-    //   return ifNested(cache, ['__lifecycle', 'componentDidMount'], fn => fn())
-    // }
-    // componentWillReceiveProps(next) {
-    //   return ifNested(cache, ['__lifecycle', 'componentWillReceiveProps'], fn => fn(next))
-    // }
-    // shouldComponentUpdate(next) {
-    //   const cur = this.props;
-    //   return ifNested(cache, ['__lifecycle', 'shouldComponentUpdate'], fn => fn(cur, next))
-    // }
-    // componentWillUpdate(next) {
-    //   const cur = this.props;
-    //   return ifNested(cache, ['__lifecycle', 'componentWillUpdate'], fn => fn(cur, next))
-    // }
-    // componentDidUpdate() {
-    //   return ifNested(cache, ['__lifecycle', 'componentDidUpdate'], fn => fn())
-    // }
-    // componentWillUnmount() {
-    //   return ifNested(cache, ['__lifecycle', 'componentWillUnmount'], fn => fn())
-    // }
+    /**
+     * Provide all child components with necessary context
+     * properties.
+     */
+    getChildContext() {
+      let childContext;
 
+      /*
+       * Ensure there is a state.
+       */
+      !stateCache && this.ensureState();
+
+      /*
+       * If our context is already marked as rendered and we have
+       * an `el` property, throw an error.
+       */
+      if (this.context["@@SQ_Target"] && settings.el) {
+        throw new Error('Component already lives in a rendered nesting.');
+      }
+
+      /*
+       * Children should be given access to a state property
+       * as well as a render target if we're rendering.
+       */
+      childContext = {
+        "@@SQ_State": stateCache,
+        "@@SQ_Target": this.context["@@SQ_Target"] || settings.el
+      };
+
+      /*
+       * Dynamically add any extra context provided
+       * by the user.
+       */
+      if (settings.childContext) {
+        Object.assign(childContext, settings.childContext);
+      }
+
+      return childContext;
+    }
+
+    /**
+     * Whenever this component is preparing to mount,
+     * subscribe it to the state.
+     */
+    componentWillMount() {
+      this.ensureState();
+      stateCache.watch(this.watcher);
+    }
+
+    /**
+     * Whenever this component is preparing to be
+     * removed, unsubscribe it from the state.
+     */
+    componentWillUnmount() {
+      stateCache.unwatch(this.watcher);
+    }
+
+    /**
+     * Guarantees that we have a state object to work with.
+     * Order of priority will be:
+     * - a pre-existing state we've already ensured exists
+     * - a manually provided state
+     * - an existing context state
+     * - a new state we create
+     */
+    ensureState() {
+      stateCache = stateCache                 ||
+                   settings.state             ||
+                   this.context["@@SQ_State"] ||
+                   createState({});
+    }
+
+    /**
+     * Adds extra props as necessary to the child output.
+     * Also ensures state exists and that any initial
+     * state rule is automatically called.
+     */
+    genProps() {
+      const newProps = {};
+
+      /*
+       * Make sure a state exists.
+       */
+      !stateCache && this.ensureState();
+
+      /*
+       * If we haven't cached rules yet, cache them
+       * and execute the initial rule. If we have
+       * a cache, pass that cache in as props.
+       */
+      if (settings.createRules) {
+        if (!ruleCache) {
+          ruleCache = settings.createRules(stateCache, http);
+          ruleCache.initial && ruleCache.initial();
+        }
+        newProps.rules = extendIfExists(this.props.rules, ruleCache);
+      }
+
+      /*
+       * Merge extra props with our natural props.
+       */
+      return extend(this.props, newProps);
+    }
+
+    /**
+     * Render out the provided component.
+     */
     render() {
-
-      /*
-       * The referencer prop will be specific to each component and can
-       * be used to trap `ref={...}` references.
-       */
-      const referencer = createReferencer();
-      let newProps = merge(this.props, { ref: referencer })
-
-      /*
-       * Trap a reference to the storeWrapper so that our
-       * data API will be able to use it.
-       */
-      storeWrapper = this.context[INTERNALS.STORE_REF];
-
-      /*
-       * If the user has specified action infusers, loop over each group and
-       * merge them together into a prop called `actions` that dispatches the
-       * action to the store. The reason we don't use mapDispatchToProps is
-       * because we need access to the actionNames on the storeWrapper.
-       */
-      if (cache.actionInfusers) {
-        const actionProps = {};
-
-        cache.actionInfusers.forEach(infuser => {
-          Object.assign(
-            actionProps,
-            newProps.actions || {}, // Merge any any actions passed in from the parent.
-            mapObject(
-              infuser(storeWrapper.actionNames, requestsPackage),
-              fn => createDispatcher(storeWrapper, actionProps, fn)
-            )
-          );
-        })
-
-        newProps.actions = actionProps;
-      }
-
-      /*
-       * If the user has specified handlers, make them more robust by
-       * converting each one into a function that is called both with
-       * the event object and the current props.
-       */
-      if (cache.handlers) {
-        const mergedHandlers = merge(newProps.handlers || {}, mapObject(cache.handlers, fun => {
-          const handler = evt => fun(evt, newProps);
-          handler.with = (...extras) => evt => fun(evt, newProps, ...extras);
-          return handler;
-        }));
-
-        newProps.handlers = mergedHandlers;
-      }
-
-      return renderFn.bind(this)(newProps);
+      return React.createElement(component, this.genProps(), this.props.children);
     }
   }
 
   /*
-   * Make sure every component can access the store wrapper
-   * we got from our custom provider.
+   * Make sure children of our component will have access to
+   * the necessary context properties.
    */
-  Component.contextTypes = {
-    [INTERNALS.STORE_REF]: PropTypes.object.isRequired,
-    [INTERNALS.LOC_REF]: PropTypes.object
+  StateBinding.childContextTypes = {
+    "@@SQ_State": PropTypes.object,
+    "@@SQ_Target": PropTypes.string
   };
 
   /*
-   * Attach prop types to the component if necessary.
+   * Dynamically add childContextTypes if the user
+   * has specified a child context.
    */
-  if (cache.propTypes) {
-    Component.propTypes = cache.propTypes;
+  if (settings.childContext) {
+    forProps(settings.childContext, (item, name) => {
+      StateBinding.childContextTypes[name] = mapPropType(item);
+    });
   }
 
   /*
-   * To map state to props, loop over all state infusers and call
-   * each one with the state. Merge all their outputs together and
-   * return the result.
+   * Make sure our component has access to all of the
+   * context properties it needs and return it.
    */
-  function mapStateToProps(state) {
-    const out = {};
-
-    /*
-     * Assign props from all of the state infusers.
-     */
-    if (cache.stateInfusers) {
-      cache.stateInfusers.forEach(infuser => {
-        Object.assign(out, infuser(state));
-      });
-    }
-
-    /*
-     * Cause the component to re-render when data changes by
-     * toggling a symbol on its props when the incoming data
-     * is different.
-     */
-    if (prevData === state[INTERNALS.DATA_REF]) {
-      out.__dataSymbol = dataToggler.current();
-    } else {
-      out.__dataSymbol = dataToggler();
-      prevData = state[INTERNALS.DATA_REF];
-    }
-
-    /*
-     * Provide state location as a prop.
-     */
-    out.location = state[INTERNALS.HASH_PATH];
-
-    return out;
-  }
-
-  /*
-   * Return a connected component so we can make use of
-   * mapStateToProps
-   */
-  return connect(mapStateToProps, () => ({}))(Component);
+  attachContextTypes(StateBinding);
+  return StateBinding;
 }
+
+/**
+ * Generates handler functions and caches them.
+ * 
+ * @param {Object}   handlerCache Where we will eventually store handlers.
+ * @param {Object}   handlers     A package of handlers described by the user.
+ * @param {Function} getProps     Retrieves component props.
+ * @param {Function} getRefs      Retrieves a component's refs.
+ * 
+ * @return {undefined}
+ */
+function cacheHandlers(handlerCache, handlers, getProps, getRefs) {
+  const pack = evt => ({ evt: evt, props: getProps(), refs: getRefs() });
+  forProps(handlers, (fn, name) => {
+    handlerCache[name] = evt => fn(pack(evt));
+    handlerCache[name].with = (...extra) => evt => fn(pack(evt), ...extra);
+  })
+}
+
+/**
+ * Generates real lifecycle methods from abstracted ones.
+ * 
+ * @param {Object} proto   A component prototype.
+ * @param {Object} methods Abstracted methods.
+ * 
+ * @return {undefined}
+ */
+function buildLifecycle(proto, methods) {
+  forProps(methods, (method, name) => {
+
+    /*
+     * This proxy function may take an additional argument, such as
+     * prevState or nextProps. It then calls our user function with
+     * either 2 or 3 arguments:
+     * 1. props
+     * 2. additional argument if it's truty or refs if not
+     * 3. refs if the additional argument was truthy
+     * It is not written in arrow notation because it needs
+     * access to `this` component.
+     */
+    proto[LIFECYCLE_MAP[name]] = function (addtl) {
+      const rest = [this.refs];
+      addtl && rest.unshift(addtl);
+      return method(this.genProps(), ...rest);
+    }
+  })
+}
+
+/**
+ * Generates a basic component.
+ * 
+ * @param {Object|Function} settings Describes how this component should work.
+ * 
+ * @return {Component}
+ */
+function createBasicComponent(settings) {
+  let refCache;
+  let propCache;
+  let helperCache;
+  let handlerCache;
+  let proxyComponent;
+  let expectedContext;
+
+  /*
+   * If the user provided a stateless component function, pass it
+   * create a bare bones settings object out of it.
+   */
+  if (typeof settings === 'function') {
+    settings = { render: settings };
+  }
+
+  /*
+   * Because of the way we're generating new props, we'll need
+   * a no-op component for proxying a proptype check.
+   */
+  if (settings.ensure) {
+    proxyComponent = () => {};
+    proxyComponent.propTypes = settings.ensure(PropTypes);
+  }
+
+  /*
+   * Gather up the names of desired items to pull
+   * from context.
+   */
+  if (settings.contextProps) {
+    expectedContext = settings.contextProps;
+  }
+
+  /*
+   * Generate the new React component.
+   */
+  class Component extends ReactComponent {
+
+    /**
+     * Determines how to retrieve the component's name so
+     * that it shows up properly in dev tools and such.
+     */
+    static get name() {
+      return settings.name || settings.render.name || 'Component';
+    }
+
+    /**
+     * Infuses extra props such as state mappings into
+     * the component's full collection of props.
+     */
+    genProps() {
+      const newProps = {};
+      propCache = {};
+      refCache = this.refs;
+
+      /*
+       * Map state values to component props.
+       */
+      if (settings.observe) {
+        const state = this.context['@@SQ_State'] || mockState();
+        Object.assign(newProps, settings.observe(state.get()))
+      }
+
+      /*
+       * If we haven't cached handlers yet, cache them
+       * for later use. If we have a cache, pass that
+       * cache in as props.
+       */
+      if (settings.handlers) {
+        if (!handlerCache) {
+          handlerCache = {};
+          cacheHandlers(
+            handlerCache,
+            settings.handlers,
+            () => propCache,
+            () => refCache
+          );
+        }
+        newProps.handlers = extendIfExists(this.props.handlers, handlerCache);
+      }
+
+      /*
+       * If the user wants to manually add some helpers,
+       * do that here and cache them.
+       */
+      if (settings.helpers) {
+        helperCache = helperCache || settings.helpers;
+        newProps.helpers = extendIfExists(this.props.helpers, helperCache);
+      }
+
+      /*
+       * For any expected context values,
+       * grab them and drop them in.
+       */
+      if (expectedContext) {
+        expectedContext.forEach(name => {
+          newProps[name] = this.context[name];
+        });
+      }
+
+      /*
+       * Merge the inherited props and the new props and cache
+       * them locally so that handlers will have access to them.
+       */
+      Object.assign(propCache, this.props, newProps);
+      return propCache;
+    }
+
+    /**
+     * Renders the component's output.
+     * If we have a proxy component, instantiate it for type checking.
+     */
+    render() {
+      const props = this.genProps();
+      proxyComponent && React.createElement(proxyComponent, props);
+      return (settings.render || noop)(this.genProps());
+    }
+  }
+
+  /*
+   * If we have any lifecycle methods, add them to the
+   * component.
+   */
+  if (settings.createLifecycle) {
+    const lifecycle = settings.createLifecycle();
+    buildLifecycle(Component.prototype, lifecycle || {});
+  }
+
+
+  /*
+   * Make sure our component has access to all of the
+   * context properties it needs and return it.
+   */
+  Component.displayName = Component.name;
+  attachContextTypes(Component, expectedContext);
+  return Component;
+}
+
+/**
+ * Allow users to generate components.
+ * 
+ * @param {Object|Function} settings  Describes how the component should work.
+ * 
+ * @return {Component}
+ */
+function component(settings) {
+  let Component = createBasicComponent(settings);
+
+  /*
+   * A state must exist if we want to render this component, if
+   * it wants to use a manually-named state, or if it wants to
+   * create state transformation rules. In that case, we'll
+   * robustify this component by subscribing it to a state.
+   */
+  if (settings.el || settings.state || settings.createRules || settings.childContext) {
+    Component = robustifyComponent(Component, settings)
+  }
+
+  /*
+   * If we want to render this state and the window object exists,
+   * go ahead and render it into the named root.
+   */
+  if (settings.el && typeof window !== 'undefined') {
+    ReactDOM.render(<Component />, document.querySelector(settings.el));
+  }
+
+  return Component;
+}
+
+export default component;

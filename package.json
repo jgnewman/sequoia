@@ -1,6 +1,6 @@
 {
   "name": "sequoiajs",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "A full-featured JavaScript application framework powered by React.",
   "main": "bin/index.js",
   "repository": "git@github.com:jgnewman/sequoia",
@@ -8,16 +8,18 @@
   "license": "MIT",
   "keywords": [
     "react",
-    "redux",
+    "vue",
     "reactive",
     "framework",
+    "progressive",
+    "pwa",
     "sequoia",
     "sequoiajs",
     "application",
     "isomorphic"
   ],
   "scripts": {
-    "iso": "gulp serve-isomorphic",
+    "iso": "cd test-isomorphism && node iso",
     "dev": "gulp serve",
     "test": "gulp test"
   },
@@ -42,7 +44,7 @@
     "gulp-util": "^3.0.8",
     "react-addons-test-utils": "^15.5.1",
     "redux-promise": "^0.5.3",
-    "sinon": "^2.2.0",
+    "sinon": "^2.3.4",
     "todomvc-app-css": "^2.1.0",
     "todomvc-common": "^1.0.3",
     "vinyl-buffer": "^1.0.0",
@@ -53,10 +55,6 @@
     "prop-types": "^15.5.10",
     "react": "^15.5.4",
     "react-dom": "^15.5.4",
-    "react-redux": "^5.0.5",
-    "redux": "^3.6.0",
-    "redux-persist": "^4.8.0",
-    "redux-thunk": "^2.2.0",
     "uuid": "^3.0.1"
   }
 }
