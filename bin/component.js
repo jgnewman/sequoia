@@ -313,22 +313,22 @@ function robustifyComponent(component, settings) {
 /**
  * Generates handler functions and caches them.
  * 
- * @param {Object}   handlerCache Where we will eventually store handlers.
  * @param {Object}   handlers     A package of handlers described by the user.
  * @param {Function} getProps     Retrieves component props.
  * @param {Function} getRefs      Retrieves a component's refs.
  * 
  * @return {undefined}
  */
-function cacheHandlers(handlerCache, handlers, getProps, getRefs) {
+function createHandlers(handlers, getProps, getRefs) {
+  var out = {};
   var pack = function pack(evt) {
     return { evt: evt, props: getProps(), refs: getRefs() };
   };
   (0, _utils.forProps)(handlers, function (fn, name) {
-    handlerCache[name] = function (evt) {
+    out[name] = function (evt) {
       return fn(pack(evt));
     };
-    handlerCache[name].with = function () {
+    out[name].with = function () {
       for (var _len = arguments.length, extra = Array(_len), _key = 0; _key < _len; _key++) {
         extra[_key] = arguments[_key];
       }
@@ -338,6 +338,7 @@ function cacheHandlers(handlerCache, handlers, getProps, getRefs) {
       };
     };
   });
+  return out;
 }
 
 /**
@@ -379,7 +380,6 @@ function buildLifecycle(proto, methods) {
 function createBasicComponent(settings) {
   var propCache = void 0;
   var helperCache = void 0;
-  var handlerCache = void 0;
   var expectedContext = void 0;
   var TypeChecker = void 0;
 
@@ -448,15 +448,11 @@ function createBasicComponent(settings) {
          * cache in as props.
          */
         if (settings.handlers) {
-          if (!handlerCache) {
-            handlerCache = {};
-            cacheHandlers(handlerCache, settings.handlers, function () {
-              return _this3.genProps();
-            }, function () {
-              return _this3.refs;
-            });
-          }
-          newProps.handlers = extendIfExists(this.props.handlers, handlerCache);
+          newProps.handlers = createHandlers(settings.handlers, function () {
+            return _this3.genProps();
+          }, function () {
+            return _this3.refs;
+          });
         }
 
         /*

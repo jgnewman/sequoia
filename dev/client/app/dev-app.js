@@ -10,6 +10,32 @@ when.hash('#').then(() => console.log('hash is #'))
 
 enableDevMode();
 
+const ListItem = component({
+  handlers: {
+    clickHandler: ({ props }) => {
+      console.log('The id is', props.id)
+    }
+  },
+  render(props) {
+    return (
+      <li onClick={props.handlers.clickHandler}>
+        My id is {props.id}
+      </li>
+    )
+  }
+})
+
+const List = component({
+  render() {
+    return (
+      <ul>
+        <ListItem id={1} />
+        <ListItem id={2} />
+      </ul>
+    )
+  }
+})
+
 const Inner = component({
   name: 'Inner',
   contextProps: ['ctxFoo'],
@@ -21,6 +47,7 @@ const Inner = component({
         <a onClick={props.handlers.handleClick.with('foo')}>
           <strong>Click me</strong>
         </a>
+        <List />
       </div>
     )
   }

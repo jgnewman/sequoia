@@ -250,19 +250,20 @@ function robustifyComponent(component, settings) {
 /**
  * Generates handler functions and caches them.
  * 
- * @param {Object}   handlerCache Where we will eventually store handlers.
  * @param {Object}   handlers     A package of handlers described by the user.
  * @param {Function} getProps     Retrieves component props.
  * @param {Function} getRefs      Retrieves a component's refs.
  * 
  * @return {undefined}
  */
-function cacheHandlers(handlerCache, handlers, getProps, getRefs) {
+function createHandlers(handlers, getProps, getRefs) {
+  const out = {};
   const pack = evt => ({ evt: evt, props: getProps(), refs: getRefs() });
   forProps(handlers, (fn, name) => {
-    handlerCache[name] = evt => fn(pack(evt));
-    handlerCache[name].with = (...extra) => evt => fn(pack(evt), ...extra);
+    out[name] = evt => fn(pack(evt));
+    out[name].with = (...extra) => evt => fn(pack(evt), ...extra);
   })
+  return out;
 }
 
 /**
@@ -304,7 +305,6 @@ function buildLifecycle(proto, methods) {
 function createBasicComponent(settings) {
   let propCache;
   let helperCache;
-  let handlerCache;
   let expectedContext;
   let TypeChecker;
 
@@ -367,16 +367,11 @@ function createBasicComponent(settings) {
        * cache in as props.
        */
       if (settings.handlers) {
-        if (!handlerCache) {
-          handlerCache = {};
-          cacheHandlers(
-            handlerCache,
-            settings.handlers,
-            () => this.genProps(),
-            () => this.refs
-          );
-        }
-        newProps.handlers = extendIfExists(this.props.handlers, handlerCache);
+        newProps.handlers = createHandlers(
+          settings.handlers,
+          () => this.genProps(),
+          () => this.refs
+        );
       }
 
       /*
